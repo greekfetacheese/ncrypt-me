@@ -1,26 +1,24 @@
-use zeroize::Zeroize;
 use super::error::CredentialsError;
+use secure_types::SecureString;
 
 /// The credentials needed to encrypt and decrypt a file.
 ///
 /// Credentials are erased from memory when they are dropped.
-/// 
+///
 /// But they can also be erased manually by calling the [Credentials::erase()] method
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Credentials {
-    username: String,
-    password: String,
-    confirm_password: String,
-}
-
-impl Drop for Credentials {
-    fn drop(&mut self) {
-        self.erase();
-    }
+    username: SecureString,
+    password: SecureString,
+    confirm_password: SecureString,
 }
 
 impl Credentials {
-    pub fn new(username: String, password: String, confirm_password: String) -> Self {
+    pub fn new(
+        username: SecureString,
+        password: SecureString,
+        confirm_password: SecureString,
+    ) -> Self {
         Self {
             username,
             password,
@@ -32,59 +30,78 @@ impl Credentials {
     ///
     /// This method is automatically called when the `Credentials` instance is dropped.
     pub fn erase(&mut self) {
-        self.username.zeroize();
-        self.password.zeroize();
-        self.confirm_password.zeroize();
+        self.username.erase();
+        self.password.erase();
+        self.confirm_password.erase();
     }
 
-    pub fn username(&self) -> &String {
-        &self.username
+    pub fn username(&self) -> &str {
+        self.username.borrow()
     }
 
-    pub fn password(&self) -> &String {
-        &self.password
+    pub fn password(&self) -> &str {
+        self.password.borrow()
     }
 
-    pub fn confirm_password(&self) -> &String {
-        &self.confirm_password
+    pub fn confirm_password(&self) -> &str {
+        self.confirm_password.borrow()
     }
 
-    pub fn user_mut(&mut self) -> &mut String {
-        &mut self.username
+    pub fn user_mut<F>(&mut self, f: F)
+    where
+        F: FnOnce(&mut String),
+    {
+        self.username.string_mut(f);
     }
 
-    pub fn passwd_mut(&mut self) -> &mut String {
-        &mut self.password
+    pub fn passwd_mut<F>(&mut self, f: F)
+    where
+        F: FnOnce(&mut String),
+    {
+        self.password.string_mut(f);
     }
 
-    pub fn confirm_passwd_mut(&mut self) -> &mut String {
-        &mut self.confirm_password
+    pub fn confirm_passwd_mut<F>(&mut self, f: F)
+    where
+        F: FnOnce(&mut String),
+    {
+        self.confirm_password.string_mut(f);
     }
 
     /// Copy password to confirm password
     pub fn copy_passwd_to_confirm(&mut self) {
-        self.confirm_password.clear();
-        self.confirm_password.push_str(&self.password);
+        let passwd = self.password.to_string();
+        self.confirm_password.erase();
+        self.confirm_password.string_mut(|s| s.push_str(&passwd));
     }
 
     pub fn is_valid(&self) -> Result<(), CredentialsError> {
-        if self.username.is_empty() {
+        if self.username().is_empty() {
             return Err(CredentialsError::UsernameEmpty);
         }
 
-        if self.password.is_empty() {
+        if self.password().is_empty() {
             return Err(CredentialsError::PasswordEmpty);
         }
 
-        if self.confirm_password.is_empty() {
+        if self.confirm_password().is_empty() {
             return Err(CredentialsError::ConfirmPasswordEmpty);
         }
 
-        if self.password != self.confirm_password {
+        if self.password() != self.confirm_password() {
             return Err(CredentialsError::PasswordsDoNotMatch);
         }
-
         Ok(())
+    }
+}
+
+impl Default for Credentials {
+    fn default() -> Self {
+        Self::new(
+            SecureString::from(""),
+            SecureString::from(""),
+            SecureString::from(""),
+        )
     }
 }
 
@@ -94,12 +111,36 @@ mod tests {
 
     #[test]
     fn test_credentials() {
-        let mut credentials = Credentials::new("test".to_string(), "password".to_string(), "password".to_string());
+        let mut credentials = Credentials::new(
+            SecureString::from("username"),
+            SecureString::from("password"),
+            SecureString::from("password"),
+        );
         assert!(credentials.is_valid().is_ok());
 
         credentials.erase();
         assert_eq!(credentials.username().is_empty(), true);
         assert_eq!(credentials.password().is_empty(), true);
         assert_eq!(credentials.confirm_password().is_empty(), true);
+    }
+
+    #[test]
+    fn test_copy_passwd_to_confirm() {
+        let mut credentials = Credentials::new(
+            SecureString::from("username"),
+            SecureString::from("password"),
+            SecureString::from("something_else"),
+        );
+
+        credentials.copy_passwd_to_confirm();
+        assert!(credentials.is_valid().is_ok());
+    }
+
+    #[test]
+    fn test_default() {
+        let credintials = Credentials::default();
+        assert_eq!(credintials.username().is_empty(), true);
+        assert_eq!(credintials.password().is_empty(), true);
+        assert_eq!(credintials.confirm_password().is_empty(), true);
     }
 }

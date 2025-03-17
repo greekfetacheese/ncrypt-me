@@ -5,19 +5,20 @@
 //! and use the resulting hash of the password as the key for the XChaCha20Poly1305 cipher
 //!
 //! and the resulting hash of the username as the Additional Authenticated Data (AAD) for the cipher
-//! 
+//!
 //! Finally we encrypt the data using the cipher
 //!
 //! ### Example:
 //!
 //! ```
-//! use ncrypt_me::{encrypt_data, decrypt_data, Credentials, Argon2Params};
+//! use ncrypt_me::{encrypt_data, decrypt_data, SecureString, Credentials, Argon2Params};
 //!
 //! let some_data = vec![1, 2, 3, 4]
-//! let credentials = Credentials::new(
-//! "username".to_string(),
-//! "password".to_string(),
-//! "password".to_string());
+//!         let credentials = Credentials::new(
+//! SecureString::from("username"),
+//! SecureString::from("password"),
+//! SecureString::from("password"),
+//! );
 //!
 //! let argon_params = Argon2Params::fast();
 //! let encrypted_data = encrypt_data(argon_params, some_data.clone(), credentials.clone()).unwrap();
@@ -53,15 +54,15 @@ pub mod error;
 
 pub use argon2::Argon2;
 pub use zeroize;
+pub use secure_types::SecureString;
 
-pub use encrypt::encrypt_data;
-pub use decrypt::decrypt_data;
 pub use credentials::Credentials;
+pub use decrypt::decrypt_data;
+pub use encrypt::encrypt_data;
 
+use argon2::password_hash::Output;
 use error::Error;
 use zeroize::Zeroize;
-use argon2::password_hash::Output;
-
 
 pub fn erase_output(output: &mut Output) {
     unsafe {
@@ -74,10 +75,11 @@ pub fn erase_output(output: &mut Output) {
     }
 }
 
-
 fn extract_encrypted_info(encrypted_data: &[u8]) -> Result<Vec<u8>, Error> {
     let encrypted_info_length = u32::from_le_bytes(
-        encrypted_data[8..12].try_into().map_err(|_| Error::EncryptedInfo)?
+        encrypted_data[8..12]
+            .try_into()
+            .map_err(|_| Error::EncryptedInfo)?,
     );
 
     let encrypted_info_start = 12;
@@ -98,7 +100,7 @@ impl EncryptedInfo {
         password_salt: String,
         username_salt: String,
         cipher_nonce: Vec<u8>,
-        argon2_params: Argon2Params
+        argon2_params: Argon2Params,
     ) -> Self {
         Self {
             password_salt,
@@ -111,8 +113,7 @@ impl EncryptedInfo {
     pub fn from_encrypted_data(data: &[u8]) -> Result<Self, Error> {
         let encrypted_info = extract_encrypted_info(data)?;
 
-        let info: EncryptedInfo = bincode
-            ::deserialize(&encrypted_info)
+        let info: EncryptedInfo = bincode::deserialize(&encrypted_info)
             .map_err(|e| Error::DeserializationFailed(e.to_string()))?;
 
         Ok(info)
@@ -122,8 +123,7 @@ impl EncryptedInfo {
         let data = std::fs::read(dir).map_err(|e| Error::FileReadFailed(e.to_string()))?;
         let encrypted_info = extract_encrypted_info(&data)?;
 
-        let info: EncryptedInfo = bincode
-            ::deserialize(&encrypted_info)
+        let info: EncryptedInfo = bincode::deserialize(&encrypted_info)
             .map_err(|e| Error::DeserializationFailed(e.to_string()))?;
 
         Ok(Self {
@@ -220,18 +220,19 @@ impl Argon2Params {
 
 #[cfg(test)]
 mod tests {
-    use super::encrypt::encrypt_data;
-    use super::decrypt::decrypt_data;
     use super::credentials::Credentials;
+    use super::decrypt::decrypt_data;
+    use super::encrypt::encrypt_data;
     use super::Argon2Params;
-    use argon2::password_hash::{Output, Encoding};
+    use argon2::password_hash::{Encoding, Output};
+    use secure_types::SecureString;
 
     #[test]
     fn erase_output_works() {
         let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         let mut output = Output::new_with_encoding(&data, Encoding::Crypt).unwrap();
         super::erase_output(&mut output);
-        
+
         let bytes = output.as_bytes();
         assert_eq!(bytes, &[0; 0]);
     }
@@ -240,9 +241,9 @@ mod tests {
     fn can_encrypt_decrypt() {
         let some_data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         let credentials = Credentials::new(
-            "username".to_string(),
-            "password".to_string(),
-            "password".to_string()
+            SecureString::from("username"),
+            SecureString::from("password"),
+            SecureString::from("password"),
         );
 
         let argon_params = Argon2Params {
@@ -252,23 +253,17 @@ mod tests {
             hash_length: 64,
         };
 
-        let encrypted_data = encrypt_data(
-            argon_params,
-            some_data.clone(),
-            credentials.clone()
-        ).expect("Failed to encrypt data");
+        let encrypted_data = encrypt_data(argon_params, some_data.clone(), credentials.clone())
+            .expect("Failed to encrypt data");
 
-        std::fs
-            ::write("test.ncrypt", &encrypted_data)
+        std::fs::write("test.ncrypt", &encrypted_data)
             .expect("Failed to write encrypted data to file");
 
-        let encrypted_data = std::fs
-            ::read("test.ncrypt")
-            .expect("Failed to read encrypted data from file");
+        let encrypted_data =
+            std::fs::read("test.ncrypt").expect("Failed to read encrypted data from file");
 
-        let decrypted_data = decrypt_data(encrypted_data, credentials).expect(
-            "Failed to decrypt data"
-        );
+        let decrypted_data =
+            decrypt_data(encrypted_data, credentials).expect("Failed to decrypt data");
 
         assert_eq!(some_data, decrypted_data);
 
