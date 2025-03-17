@@ -1,21 +1,17 @@
-use argon2::{
-    password_hash::{ Output, PasswordHasher, SaltString },
-    Algorithm,
-    Argon2,
-    Params,
-    Version,
-};
-use chacha20poly1305::{
-    aead::{ generic_array::GenericArray, Aead, OsRng, Payload },
-    AeadCore,
-    KeyInit,
-    XChaCha20Poly1305,
-};
-
 use super::credentials::Credentials;
 use super::error::Error;
-use super::{ erase_output, Argon2Params, EncryptedInfo };
+use super::{erase_output, Argon2Params, EncryptedInfo};
+use argon2::{
+    password_hash::{Output, PasswordHasher, SaltString},
+    Algorithm, Argon2, Params, Version,
+};
 use bincode;
+use chacha20poly1305::{
+    aead::{generic_array::GenericArray, Aead, OsRng, Payload},
+    AeadCore, KeyInit, XChaCha20Poly1305,
+};
+use secure_types::SecureBytes;
+
 
 /*
 ██████████████████████████████████████████████████████████████████████████████
@@ -44,13 +40,12 @@ pub const HEADER: &[u8; 8] = b"nCrypt1\0";
 pub fn encrypt_data(
     argon_params: Argon2Params,
     data: Vec<u8>,
-    credentials: Credentials
+    credentials: Credentials,
 ) -> Result<Vec<u8>, Error> {
     let (encrypted_data, info) = encrypt(argon_params, credentials, data)?;
 
-    let serialized_info = bincode
-        ::serialize(&info)
-        .map_err(|e| Error::SerializationFailed(e.to_string()))?;
+    let serialized_info =
+        bincode::serialize(&info).map_err(|e| Error::SerializationFailed(e.to_string()))?;
 
     // Construct the file format
     let mut result = Vec::new();
@@ -74,9 +69,12 @@ pub fn encrypt_data(
 fn encrypt(
     argon_params: Argon2Params,
     mut credentials: Credentials,
-    data: Vec<u8>
+    data: Vec<u8>,
 ) -> Result<(Vec<u8>, EncryptedInfo), Error> {
-    credentials.is_valid().map_err(|e| Error::InvalidCredentials(e.to_string()))?;
+    let secure_bytes = SecureBytes::new(data);
+    credentials
+        .is_valid()
+        .map_err(|e| Error::InvalidCredentials(e.to_string()))?;
 
     if argon_params.hash_length < 32 {
         return Err(Error::HashLength);
@@ -86,8 +84,9 @@ fn encrypt(
         argon_params.m_cost,
         argon_params.t_cost,
         argon_params.p_cost,
-        Some(argon_params.hash_length as usize)
-    ).map_err(|e| Error::InvalidArgon2Params(e.to_string()))?;
+        Some(argon_params.hash_length as usize),
+    )
+    .map_err(|e| Error::InvalidArgon2Params(e.to_string()))?;
 
     let argon2 = Argon2::new(Algorithm::default(), Version::default(), params);
 
@@ -117,7 +116,7 @@ fn encrypt(
     erase_output(&mut key);
 
     let payload = Payload {
-        msg: data.as_ref(),
+        msg: secure_bytes.borrow(),
         aad: &aad.as_bytes(),
     };
 
@@ -131,7 +130,7 @@ fn encrypt(
         password_salt.to_string(),
         username_salt.to_string(),
         cipher_nonce.to_vec(),
-        argon_params
+        argon_params,
     );
 
     Ok((encrypted_data, info))
