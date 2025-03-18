@@ -54,7 +54,7 @@ pub mod error;
 
 pub use argon2::Argon2;
 pub use zeroize;
-pub use secure_types::SecureString;
+pub use secure_types;
 
 pub use credentials::Credentials;
 pub use decrypt::decrypt_data;
@@ -184,7 +184,7 @@ impl Argon2Params {
     pub fn fast() -> Self {
         Self {
             m_cost: 128_000,
-            t_cost: 5,
+            t_cost: 8,
             p_cost: 1,
             hash_length: 64,
         }
@@ -193,7 +193,7 @@ impl Argon2Params {
     pub fn balanced() -> Self {
         Self {
             m_cost: 256_000,
-            t_cost: 5,
+            t_cost: 8,
             p_cost: 1,
             hash_length: 64,
         }
@@ -202,7 +202,7 @@ impl Argon2Params {
     pub fn slow() -> Self {
         Self {
             m_cost: 512_000,
-            t_cost: 5,
+            t_cost: 8,
             p_cost: 1,
             hash_length: 64,
         }
@@ -211,7 +211,7 @@ impl Argon2Params {
     pub fn very_slow() -> Self {
         Self {
             m_cost: 1024_000,
-            t_cost: 5,
+            t_cost: 8,
             p_cost: 1,
             hash_length: 64,
         }
