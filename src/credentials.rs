@@ -70,9 +70,9 @@ impl Credentials {
 
     /// Copy password to confirm password
     pub fn copy_passwd_to_confirm(&mut self) {
-        let passwd = self.password.to_string();
+        let passwd = self.password.borrow();
         self.confirm_password.erase();
-        self.confirm_password.string_mut(|s| s.push_str(&passwd));
+        self.confirm_password.string_mut(|s| s.push_str(passwd));
     }
 
     pub fn is_valid(&self) -> Result<(), CredentialsError> {
