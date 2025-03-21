@@ -5,12 +5,12 @@ use secure_types::SecureString;
 ///
 /// Credentials are erased from memory when they are dropped.
 ///
-/// But they can also be erased manually by calling the [Credentials::erase()] method
+/// But they can also be erased manually by calling the [Credentials::erase()]
 #[derive(Clone)]
 pub struct Credentials {
-    username: SecureString,
-    password: SecureString,
-    confirm_password: SecureString,
+   pub username: SecureString,
+   pub password: SecureString,
+   pub confirm_password: SecureString,
 }
 
 impl Credentials {
@@ -45,27 +45,6 @@ impl Credentials {
 
     pub fn confirm_password(&self) -> &str {
         self.confirm_password.borrow()
-    }
-
-    pub fn user_mut<F>(&mut self, f: F)
-    where
-        F: FnOnce(&mut String),
-    {
-        self.username.string_mut(f);
-    }
-
-    pub fn passwd_mut<F>(&mut self, f: F)
-    where
-        F: FnOnce(&mut String),
-    {
-        self.password.string_mut(f);
-    }
-
-    pub fn confirm_passwd_mut<F>(&mut self, f: F)
-    where
-        F: FnOnce(&mut String),
-    {
-        self.confirm_password.string_mut(f);
     }
 
     /// Copy password to confirm password
