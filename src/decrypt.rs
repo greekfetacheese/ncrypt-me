@@ -1,6 +1,6 @@
 use argon2::{ password_hash::{ PasswordHasher, SaltString }, Algorithm, Argon2, Params, Version };
 use chacha20poly1305::aead::{ generic_array::GenericArray, Aead, Payload };
-
+use secure_types::SecureBytes;
 use super::{
     credentials::Credentials,
     error::Error,
@@ -15,7 +15,7 @@ use super::{
 ///
 /// - `data` - The data to decrypt
 /// - `credentials` - The credentials to use for decryption
-pub fn decrypt_data(data: Vec<u8>, credentials: Credentials) -> Result<Vec<u8>, Error> {
+pub fn decrypt_data(data: Vec<u8>, credentials: Credentials) -> Result<SecureBytes, Error> {
     // Verify Header
     if &data[0..8] != HEADER {
         return Err(Error::InvalidFileFormat);
@@ -37,6 +37,7 @@ pub fn decrypt_data(data: Vec<u8>, credentials: Credentials) -> Result<Vec<u8>, 
     let encrypted_data = &data[info_end..];
 
     let decrypted_data = decrypt(credentials, info, encrypted_data.to_vec())?;
+    let decrypted_data = SecureBytes::from(decrypted_data);
     Ok(decrypted_data)
 }
 

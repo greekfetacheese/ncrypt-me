@@ -25,7 +25,7 @@
 //!
 //! let decrypted_data = decrypt_data(encrypted_data, credentials).unwrap();
 //!
-//! assert_eq!(some_data, decrypted_data);
+//! assert_eq!(some_data, decrypted_data.borrow());
 //! ```
 //!
 //! ### Extracting the Encrypted Info
@@ -265,7 +265,7 @@ mod tests {
         let decrypted_data =
             decrypt_data(encrypted_data, credentials).expect("Failed to decrypt data");
 
-        assert_eq!(some_data, decrypted_data);
+        assert_eq!(some_data, decrypted_data.borrow());
 
         std::fs::remove_file("test.ncrypt").expect("Failed to remove test file");
     }
