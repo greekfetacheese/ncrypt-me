@@ -87,7 +87,7 @@ fn extract_encrypted_info(encrypted_data: &[u8]) -> Result<Vec<u8>, Error> {
     Ok(encrypted_data[encrypted_info_start..encrypted_info_end].to_vec())
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EncryptedInfo {
     pub password_salt: String,
     pub username_salt: String,
@@ -136,7 +136,7 @@ impl EncryptedInfo {
 }
 
 /// Argon2 parameters
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Argon2Params {
     pub m_cost: u32,
     pub t_cost: u32,
