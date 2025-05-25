@@ -26,6 +26,19 @@ impl Credentials {
         }
     }
 
+    /// Creates a new `Credentials` instance with the specified capacity.
+    /// 
+    /// # Caution
+    /// 
+    /// ### Make sure if you are going to mutate Credentials the capacity is enough so the inner `Vec` doesn't reallocate
+    pub fn new_with_capacity(capacity: usize) -> Self {
+        Self {
+            username: SecureString::new_with_capacity(capacity),
+            password: SecureString::new_with_capacity(capacity),
+            confirm_password: SecureString::new_with_capacity(capacity),
+        }
+    }
+
     /// Erases the credentials from memory by zeroizing the username and password fields.
     ///
     /// This method is automatically called when the `Credentials` instance is dropped.
