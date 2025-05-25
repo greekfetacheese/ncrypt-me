@@ -21,10 +21,10 @@ use ncrypt_me::{encrypt_data, decrypt_data, Credentials, Argon2Params};
 
 let some_data = vec![1, 2, 3, 4];
 let credentials = Credentials::new(
-    "username".to_string(),
-    "password".to_string(),
-    "password".to_string()
-);
+ SecureString::from("username"),
+ SecureString::from("password"),
+ SecureString::from("password"),
+ );
 
 let argon_params = Argon2Params::fast();
 let encrypted_data = encrypt_data(argon_params, some_data.clone(), credentials.clone()).unwrap();
