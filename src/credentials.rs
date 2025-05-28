@@ -14,125 +14,97 @@ pub struct Credentials {
 }
 
 impl Credentials {
-    pub fn new(
-        username: SecureString,
-        password: SecureString,
-        confirm_password: SecureString,
-    ) -> Self {
-        Self {
-            username,
-            password,
-            confirm_password,
-        }
-    }
+   pub fn new(
+      username: SecureString,
+      password: SecureString,
+      confirm_password: SecureString,
+   ) -> Self {
+      Self {
+         username,
+         password,
+         confirm_password,
+      }
+   }
 
-    /// Creates a new `Credentials` instance with the specified capacity.
-    /// 
-    /// # Caution
-    /// 
-    /// ### Make sure if you are going to mutate Credentials the capacity is enough so the inner `Vec` doesn't reallocate
-    pub fn new_with_capacity(capacity: usize) -> Self {
-        Self {
-            username: SecureString::new_with_capacity(capacity),
-            password: SecureString::new_with_capacity(capacity),
-            confirm_password: SecureString::new_with_capacity(capacity),
-        }
-    }
+   /// Creates a new `Credentials` instance with the specified capacity.
+   ///
+   /// # Caution
+   ///
+   /// ### Make sure if you are going to mutate Credentials the capacity is enough so the inner `Vec` doesn't reallocate
+   pub fn new_with_capacity(capacity: usize) -> Self {
+      Self {
+         username: SecureString::new_with_capacity(capacity),
+         password: SecureString::new_with_capacity(capacity),
+         confirm_password: SecureString::new_with_capacity(capacity),
+      }
+   }
 
-    /// Erases the credentials from memory by zeroizing the username and password fields.
-    ///
-    /// This method is automatically called when the `Credentials` instance is dropped.
-    pub fn erase(&mut self) {
-        self.username.erase();
-        self.password.erase();
-        self.confirm_password.erase();
-    }
+   /// Erases the credentials from memory by zeroizing the username and password fields.
+   ///
+   /// This method is automatically called when the `Credentials` instance is dropped.
+   pub fn erase(&mut self) {
+      self.username.erase();
+      self.password.erase();
+      self.confirm_password.erase();
+   }
 
-    pub fn username(&self) -> &str {
-        self.username.borrow()
-    }
+   /// Copy password to confirm password
+   pub fn copy_passwd_to_confirm(&mut self) {
+      self.password.str_scope(|str| {
+         self.confirm_password.erase();
+         self.confirm_password.push_str(str);
+      });
+   }
 
-    pub fn password(&self) -> &str {
-        self.password.borrow()
-    }
+   pub fn is_valid(&self) -> Result<(), CredentialsError> {
+      if self.username.char_len() == 0 {
+         return Err(CredentialsError::UsernameEmpty);
+      }
 
-    pub fn confirm_password(&self) -> &str {
-        self.confirm_password.borrow()
-    }
+      if self.password.char_len() == 0 {
+         return Err(CredentialsError::PasswordEmpty);
+      }
 
-    /// Copy password to confirm password
-    pub fn copy_passwd_to_confirm(&mut self) {
-        let passwd = self.password.borrow();
-        self.confirm_password.erase();
-        self.confirm_password.string_mut(|s| s.push_str(passwd));
-    }
+      if self.confirm_password.char_len() == 0 {
+         return Err(CredentialsError::ConfirmPasswordEmpty);
+      }
 
-    pub fn is_valid(&self) -> Result<(), CredentialsError> {
-        if self.username().is_empty() {
-            return Err(CredentialsError::UsernameEmpty);
-        }
-
-        if self.password().is_empty() {
-            return Err(CredentialsError::PasswordEmpty);
-        }
-
-        if self.confirm_password().is_empty() {
-            return Err(CredentialsError::ConfirmPasswordEmpty);
-        }
-
-        if self.password() != self.confirm_password() {
-            return Err(CredentialsError::PasswordsDoNotMatch);
-        }
-        Ok(())
-    }
+      let res = self.password.str_scope(|password| {
+         self.confirm_password.str_scope(|confirm_password| {
+            if password != confirm_password {
+               return Err(CredentialsError::PasswordsDoNotMatch);
+            } else {
+               Ok(())
+            }
+         })
+      });
+      res
+   }
 }
 
 impl Default for Credentials {
-    fn default() -> Self {
-        Self::new(
-            SecureString::from(""),
-            SecureString::from(""),
-            SecureString::from(""),
-        )
-    }
+   fn default() -> Self {
+      Self::new(
+         SecureString::from(""),
+         SecureString::from(""),
+         SecureString::from(""),
+      )
+   }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+   use super::*;
 
-    #[test]
-    fn test_credentials() {
-        let mut credentials = Credentials::new(
-            SecureString::from("username"),
-            SecureString::from("password"),
-            SecureString::from("password"),
-        );
-        assert!(credentials.is_valid().is_ok());
+   #[test]
+   fn test_copy_passwd_to_confirm() {
+      let mut credentials = Credentials::new(
+         SecureString::from("username"),
+         SecureString::from("password"),
+         SecureString::from("something_else"),
+      );
 
-        credentials.erase();
-        assert_eq!(credentials.username().is_empty(), true);
-        assert_eq!(credentials.password().is_empty(), true);
-        assert_eq!(credentials.confirm_password().is_empty(), true);
-    }
-
-    #[test]
-    fn test_copy_passwd_to_confirm() {
-        let mut credentials = Credentials::new(
-            SecureString::from("username"),
-            SecureString::from("password"),
-            SecureString::from("something_else"),
-        );
-
-        credentials.copy_passwd_to_confirm();
-        assert!(credentials.is_valid().is_ok());
-    }
-
-    #[test]
-    fn test_default() {
-        let credintials = Credentials::default();
-        assert_eq!(credintials.username().is_empty(), true);
-        assert_eq!(credintials.password().is_empty(), true);
-        assert_eq!(credintials.confirm_password().is_empty(), true);
-    }
+      credentials.copy_passwd_to_confirm();
+      assert!(credentials.is_valid().is_ok());
+   }
 }

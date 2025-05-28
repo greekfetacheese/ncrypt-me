@@ -1,17 +1,16 @@
 use super::credentials::Credentials;
 use super::error::Error;
-use super::{erase_output, Argon2Params, EncryptedInfo};
+use super::{Argon2Params, EncryptedInfo, erase_output};
 use argon2::{
-    password_hash::{Output, PasswordHasher, SaltString},
-    Algorithm, Argon2, Params, Version,
+   Algorithm, Argon2, Params, Version,
+   password_hash::{Output, PasswordHasher, SaltString},
 };
 use bincode;
 use chacha20poly1305::{
-    aead::{generic_array::GenericArray, Aead, OsRng, Payload},
-    AeadCore, KeyInit, XChaCha20Poly1305,
+   AeadCore, KeyInit, XChaCha20Poly1305,
+   aead::{Aead, OsRng, Payload, generic_array::GenericArray},
 };
 use secure_types::SecureBytes;
-
 
 /*
 ██████████████████████████████████████████████████████████████████████████████
@@ -38,105 +37,123 @@ pub const HEADER: &[u8; 8] = b"nCrypt1\0";
 /// - `data` - The data to encrypt
 /// - `credentials` - The credentials to use for encryption
 pub fn encrypt_data(
-    argon_params: Argon2Params,
-    data: Vec<u8>,
-    credentials: Credentials,
+   argon_params: Argon2Params,
+   data: Vec<u8>,
+   credentials: Credentials,
 ) -> Result<Vec<u8>, Error> {
-    let (encrypted_data, info) = encrypt(argon_params, credentials, data)?;
+   let (encrypted_data, info) = encrypt(argon_params, credentials, data)?;
 
-    let serialized_info =
-        bincode::serialize(&info).map_err(|e| Error::SerializationFailed(e.to_string()))?;
+   let serialized_info =
+      bincode::serialize(&info).map_err(|e| Error::SerializationFailed(e.to_string()))?;
 
-    // Construct the file format
-    let mut result = Vec::new();
+   // Construct the file format
+   let mut result = Vec::new();
 
-    // Append the header
-    result.extend_from_slice(HEADER);
+   // Append the header
+   result.extend_from_slice(HEADER);
 
-    // Append the EncryptedInfo Length
-    let info_length = serialized_info.len() as u32;
-    result.extend_from_slice(&info_length.to_le_bytes());
+   // Append the EncryptedInfo Length
+   let info_length = serialized_info.len() as u32;
+   result.extend_from_slice(&info_length.to_le_bytes());
 
-    // Append the EncryptedInfo
-    result.extend_from_slice(&serialized_info);
+   // Append the EncryptedInfo
+   result.extend_from_slice(&serialized_info);
 
-    // Append the encrypted Data
-    result.extend_from_slice(&encrypted_data);
+   // Append the encrypted Data
+   result.extend_from_slice(&encrypted_data);
 
-    Ok(result)
+   Ok(result)
 }
 
 fn encrypt(
-    argon_params: Argon2Params,
-    mut credentials: Credentials,
-    data: Vec<u8>,
+   argon_params: Argon2Params,
+   mut credentials: Credentials,
+   data: Vec<u8>,
 ) -> Result<(Vec<u8>, EncryptedInfo), Error> {
-    let secure_bytes = SecureBytes::new(data);
-    credentials
-        .is_valid()
-        .map_err(|e| Error::InvalidCredentials(e.to_string()))?;
+   let secure_data = SecureBytes::from_vec(data);
+   credentials
+      .is_valid()
+      .map_err(|e| Error::InvalidCredentials(e.to_string()))?;
 
-    if argon_params.hash_length < 32 {
-        return Err(Error::HashLength);
-    }
+   if argon_params.hash_length < 32 {
+      return Err(Error::HashLength);
+   }
 
-    let params = Params::new(
-        argon_params.m_cost,
-        argon_params.t_cost,
-        argon_params.p_cost,
-        Some(argon_params.hash_length as usize),
-    )
-    .map_err(|e| Error::InvalidArgon2Params(e.to_string()))?;
+   let params = Params::new(
+      argon_params.m_cost,
+      argon_params.t_cost,
+      argon_params.p_cost,
+      Some(argon_params.hash_length as usize),
+   )
+   .map_err(|e| Error::InvalidArgon2Params(e.to_string()))?;
 
-    let argon2 = Argon2::new(Algorithm::default(), Version::default(), params);
+   let argon2 = Argon2::new(Algorithm::default(), Version::default(), params);
 
-    let password_salt = SaltString::generate(&mut OsRng);
-    let username_salt = SaltString::generate(&mut OsRng);
+   let password_salt = SaltString::generate(&mut OsRng);
+   let username_salt = SaltString::generate(&mut OsRng);
 
-    // hash the password
-    let password_hash = argon2
-        .hash_password(credentials.password().as_bytes(), &password_salt)
-        .map_err(|e| Error::PasswordHashingFailed(e.to_string()))?;
+   let cipher = derive_cipher(&credentials, &password_salt, argon2.clone())?;
+   let mut aad = derive_aad(&credentials, &username_salt, argon2.clone())?;
 
-    // get the hash output
-    let mut key = password_hash.hash.ok_or(Error::PasswordHashOutput)?;
+   credentials.erase();
 
-    // hash the username for the AAD
-    let username_hash = argon2
-        .hash_password(credentials.username().as_bytes(), &username_salt)
-        .map_err(|e| Error::UsernameHashingFailed(e.to_string()))?;
+   let cipher_nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
 
-    credentials.erase();
+   secure_data.slice_scope(|data| {
+      let payload = Payload {
+         msg: data,
+         aad: &aad.as_bytes(),
+      };
 
-    let mut aad = username_hash.hash.ok_or(Error::UsernameHashOutput)?;
+      let encrypted_data = cipher
+         .encrypt(&cipher_nonce, payload)
+         .map_err(|e| Error::EncryptionFailed(e.to_string()))?;
 
-    // derive the cipher using the hashed password's last 32 bytes as the key
-    let cipher = xchacha20_poly_1305(&key);
-    let cipher_nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
-    erase_output(&mut key);
+      erase_output(&mut aad);
 
-    let payload = Payload {
-        msg: secure_bytes.borrow(),
-        aad: &aad.as_bytes(),
-    };
+      let info = EncryptedInfo::new(
+         password_salt.to_string(),
+         username_salt.to_string(),
+         cipher_nonce.to_vec(),
+         argon_params,
+      );
 
-    let encrypted_data = cipher
-        .encrypt(&cipher_nonce, payload)
-        .map_err(|e| Error::EncryptionFailed(e.to_string()))?;
-
-    erase_output(&mut aad);
-
-    let info = EncryptedInfo::new(
-        password_salt.to_string(),
-        username_salt.to_string(),
-        cipher_nonce.to_vec(),
-        argon_params,
-    );
-
-    Ok((encrypted_data, info))
+      Ok((encrypted_data, info))
+   })
 }
 
-pub fn xchacha20_poly_1305(key: &Output) -> XChaCha20Poly1305 {
-    let key = GenericArray::from_slice(&key.as_bytes()[..32]);
-    XChaCha20Poly1305::new(key)
+pub(crate) fn derive_cipher(
+   credentials: &Credentials,
+   password_salt: &SaltString,
+   argon2: Argon2,
+) -> Result<XChaCha20Poly1305, Error> {
+   credentials.username.str_scope(|username| {
+      let password_hash = argon2
+         .hash_password(username.as_bytes(), password_salt)
+         .map_err(|e| Error::PasswordHashingFailed(e.to_string()))?;
+
+      let mut key = password_hash.hash.ok_or(Error::PasswordHashOutput)?;
+
+      let cipher = xchacha20_poly_1305(&key);
+      erase_output(&mut key);
+      Ok(cipher)
+   })
+}
+
+pub(crate) fn derive_aad(
+   credentials: &Credentials,
+   username_salt: &SaltString,
+   argon2: Argon2,
+) -> Result<Output, Error> {
+   credentials.username.str_scope(|username| {
+      let username_hash = argon2
+         .hash_password(username.as_bytes(), username_salt)
+         .map_err(|e| Error::UsernameHashingFailed(e.to_string()))?;
+      Ok(username_hash.hash.ok_or(Error::UsernameHashOutput)?)
+   })
+}
+
+pub(crate) fn xchacha20_poly_1305(key: &Output) -> XChaCha20Poly1305 {
+   let key = GenericArray::from_slice(&key.as_bytes()[..32]);
+   XChaCha20Poly1305::new(key)
 }

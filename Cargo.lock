@@ -266,9 +266,11 @@ checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 [[package]]
 name = "secure-types"
 version = "0.1.0"
-source = "git+https://github.com/greekfetacheese/secure-types.git?branch=master#c4efd91df76ec877398fd1fc49b70ae90788abf4"
+source = "git+https://github.com/greekfetacheese/secure-types.git?branch=master#986854182420440d54e8f28758706f3f13b2e496"
 dependencies = [
+ "libc",
  "memsec",
+ "windows-sys",
  "zeroize",
 ]
 
