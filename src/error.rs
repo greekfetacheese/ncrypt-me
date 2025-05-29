@@ -67,4 +67,7 @@ pub enum CredentialsError {
 
    #[error("Passwords do not match")]
    PasswordsDoNotMatch,
+
+   #[error("{0}")]
+   Custom(String),
 }

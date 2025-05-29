@@ -80,5 +80,8 @@ fn decrypt(
 
    erase_output(&mut aad);
 
-   Ok(SecureBytes::from_vec(decrypted_data))
+   let secure_data =
+      SecureBytes::from_vec(decrypted_data).map_err(|e| Error::Custom(e.to_string()))?;
+
+   Ok(secure_data)
 }

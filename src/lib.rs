@@ -11,7 +11,7 @@
 //! ### Example:
 //!
 //! ```
-//! use ncrypt_me::{encrypt_data, decrypt_data, SecureString, Credentials, Argon2Params};
+//! use ncrypt_me::{encrypt_data, decrypt_data, secure_types::SecureString, Credentials, Argon2Params};
 //!
 //! let some_data = vec![1, 2, 3, 4]
 //!         let credentials = Credentials::new(
@@ -25,7 +25,9 @@
 //!
 //! let decrypted_data = decrypt_data(encrypted_data, credentials).unwrap();
 //!
-//! assert_eq!(some_data, decrypted_data.borrow());
+//! decrypted_data.slice_scope(|decrypted_data| {
+//!     assert_eq!(decrypted_data, &some_data);
+//! });
 //! ```
 //!
 //! ### Extracting the Encrypted Info

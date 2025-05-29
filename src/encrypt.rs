@@ -70,7 +70,8 @@ fn encrypt(
    mut credentials: Credentials,
    data: Vec<u8>,
 ) -> Result<(Vec<u8>, EncryptedInfo), Error> {
-   let secure_data = SecureBytes::from_vec(data);
+   let secure_data = SecureBytes::from_vec(data).map_err(|e| Error::Custom(e.to_string()))?;
+
    credentials
       .is_valid()
       .map_err(|e| Error::InvalidCredentials(e.to_string()))?;
