@@ -266,7 +266,7 @@ checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 [[package]]
 name = "secure-types"
 version = "0.1.0"
-source = "git+https://github.com/greekfetacheese/secure-types.git?branch=master#00020b59882273e1c97459caa225670a575af94a"
+source = "git+https://github.com/greekfetacheese/secure-types.git?branch=master#7319204816c3cdb4da163ad21117c2002af03e46"
 dependencies = [
  "libc",
  "memsec",
