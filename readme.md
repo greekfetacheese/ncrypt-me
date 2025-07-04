@@ -34,14 +34,6 @@ let decrypted_data = decrypt_data(encrypted_data, credentials).unwrap();
 assert_eq!(some_data, decrypted_data);
 ```
 
-### The safer way to create a new `Credentials` instance that is going to be mutated
-
-```rust
-// Make sure to give enough capacity so the inner `Vec` doesn't reallocate
-let credentials = Credentials::new_with_capacity(1024);
-```
-
-
 
 ### Extracting the Encrypted Info
 
