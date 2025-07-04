@@ -5,7 +5,7 @@ pub enum Error {
    #[error("Hash Length cannot be less than 32 bytes")]
    HashLength,
 
-   #[error("Header not found, invalid file format?")]
+   #[error("Header not found, data corrupted?")]
    InvalidFileFormat,
 
    #[error("Could not parse EncryptedInfo length")]
@@ -35,14 +35,14 @@ pub enum Error {
    #[error("Username hash output not found")]
    UsernameHashOutput,
 
-   #[error("EncrytedInfo Serialization Failed {0}")]
-   SerializationFailed(String),
+   #[error("EncrytedInfo Encoding Failed {0}")]
+   EncodingFailed(String),
 
    #[error("Encryption Failed {0}")]
    EncryptionFailed(String),
 
-   #[error("Deserialization Failed {0}")]
-   DeserializationFailed(String),
+   #[error("EncryptedInfo Decoding Failed {0}")]
+   DecodingFailed(String),
 
    #[error("Decryption Failed {0}")]
    DecryptionFailed(String),

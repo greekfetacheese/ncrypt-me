@@ -5,7 +5,7 @@ use argon2::{
    Algorithm, Argon2, Params, Version,
    password_hash::{Output, PasswordHasher, SaltString},
 };
-use bincode;
+use bincode::{config::legacy, encode_to_vec};
 use chacha20poly1305::{
    AeadCore, KeyInit, XChaCha20Poly1305,
    aead::{Aead, OsRng, Payload, generic_array::GenericArray},
@@ -43,8 +43,8 @@ pub fn encrypt_data(
 ) -> Result<Vec<u8>, Error> {
    let (encrypted_data, info) = encrypt(argon_params, credentials, data)?;
 
-   let serialized_info =
-      bincode::serialize(&info).map_err(|e| Error::SerializationFailed(e.to_string()))?;
+   let encoded_info =
+      encode_to_vec(&info, legacy()).map_err(|e| Error::EncodingFailed(e.to_string()))?;
 
    // Construct the file format
    let mut result = Vec::new();
@@ -53,11 +53,11 @@ pub fn encrypt_data(
    result.extend_from_slice(HEADER);
 
    // Append the EncryptedInfo Length
-   let info_length = serialized_info.len() as u32;
+   let info_length = encoded_info.len() as u32;
    result.extend_from_slice(&info_length.to_le_bytes());
 
    // Append the EncryptedInfo
-   result.extend_from_slice(&serialized_info);
+   result.extend_from_slice(&encoded_info);
 
    // Append the encrypted Data
    result.extend_from_slice(&encrypted_data);

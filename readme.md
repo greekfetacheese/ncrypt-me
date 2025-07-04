@@ -54,10 +54,6 @@ The Encrypted Info contains the following information:
 ```rust
 use ncrypt_me::EncryptedInfo;
 
-let path = "your_file.ncrypt";
-let info = EncryptedInfo::from_file(&path).unwrap();
+let info = EncryptedInfo::from_encrypted_data(&encrypted_data).unwrap();
 
-// or you can use the EncryptedInfo::from_encrypted_data method
-
-println!("{:?}", info);
 ```

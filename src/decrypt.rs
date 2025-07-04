@@ -1,5 +1,9 @@
-use super::{EncryptedInfo, credentials::Credentials, encrypt::*, erase_output, error::Error};
+use super::{
+   EncryptedInfo, credentials::Credentials, encrypt::*, erase_output, error::Error,
+   extract_encrypted_info_and_data,
+};
 use argon2::{Algorithm, Argon2, Params, Version, password_hash::SaltString};
+use bincode::{config::legacy, decode_from_slice};
 use chacha20poly1305::aead::{Aead, Payload, generic_array::GenericArray};
 use secure_types::SecureBytes;
 
@@ -15,21 +19,12 @@ pub fn decrypt_data(data: Vec<u8>, credentials: Credentials) -> Result<SecureByt
       return Err(Error::InvalidFileFormat);
    }
 
-   // Read EncryptedInfo Length
-   let info_length = u32::from_le_bytes(data[8..12].try_into().map_err(|_| Error::EncryptedInfo)?);
+   let (encrypted_info, encrypted_data) = extract_encrypted_info_and_data(&data)?;
 
-   // Extract EncryptedInfo
-   let info_start = 12;
-   let info_end = info_start + (info_length as usize);
-   let info_bytes = &data[info_start..info_end];
+   let info: (EncryptedInfo, usize) = decode_from_slice(&encrypted_info, legacy())
+      .map_err(|e| Error::DecodingFailed(e.to_string()))?;
 
-   let info: EncryptedInfo =
-      bincode::deserialize(info_bytes).map_err(|e| Error::DeserializationFailed(e.to_string()))?;
-
-   // Extract Encrypted Data
-   let encrypted_data = &data[info_end..];
-
-   let decrypted_data = decrypt(credentials, info, encrypted_data.to_vec())?;
+   let decrypted_data = decrypt(credentials, info.0, encrypted_data)?;
    Ok(decrypted_data)
 }
 

@@ -41,12 +41,8 @@
 //! ```
 //! use ncrypt_me::EncryptedInfo;
 //!
-//! let path = "your_file.ncrypt";
-//! let info = EncryptedInfo::from_file(&path).unwrap();
+//! let info = EncryptedInfo::from_encrypted_data(&encrypted_data).unwrap();
 //!
-//! // or you can use the EncryptedInfo::from_encrypted_data method
-//!
-//! println!("{:?}", info);
 //! ```
 
 pub mod credentials;
@@ -63,8 +59,12 @@ pub use decrypt::decrypt_data;
 pub use encrypt::encrypt_data;
 
 use argon2::password_hash::Output;
+use bincode::{Decode, Encode, config::legacy, decode_from_slice};
 use error::Error;
 use zeroize::Zeroize;
+
+const HEADER_LEN: usize = 8;
+const ENCRYPTED_INFO_START: usize = 12;
 
 pub fn erase_output(output: &mut Output) {
    unsafe {
@@ -77,19 +77,22 @@ pub fn erase_output(output: &mut Output) {
    }
 }
 
-fn extract_encrypted_info(encrypted_data: &[u8]) -> Result<Vec<u8>, Error> {
+pub(crate) fn extract_encrypted_info_and_data(
+   encrypted_data: &[u8],
+) -> Result<(Vec<u8>, Vec<u8>), Error> {
    let encrypted_info_length = u32::from_le_bytes(
-      encrypted_data[8..12]
+      encrypted_data[HEADER_LEN..ENCRYPTED_INFO_START]
          .try_into()
          .map_err(|_| Error::EncryptedInfo)?,
    );
 
-   let encrypted_info_start = 12;
-   let encrypted_info_end = encrypted_info_start + (encrypted_info_length as usize);
-   Ok(encrypted_data[encrypted_info_start..encrypted_info_end].to_vec())
+   let encrypted_info_end = ENCRYPTED_INFO_START + (encrypted_info_length as usize);
+   let encrypted_info = &encrypted_data[ENCRYPTED_INFO_START..encrypted_info_end];
+   let encrypted_data = &encrypted_data[encrypted_info_end..];
+   Ok((encrypted_info.to_vec(), encrypted_data.to_vec()))
 }
 
-#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Clone, Debug, Encode, Decode)]
 pub struct EncryptedInfo {
    pub password_salt: String,
    pub username_salt: String,
@@ -113,32 +116,32 @@ impl EncryptedInfo {
    }
 
    pub fn from_encrypted_data(data: &[u8]) -> Result<Self, Error> {
-      let encrypted_info = extract_encrypted_info(data)?;
+      let (encrypted_info, _) = extract_encrypted_info_and_data(data)?;
 
-      let info: EncryptedInfo = bincode::deserialize(&encrypted_info)
-         .map_err(|e| Error::DeserializationFailed(e.to_string()))?;
+      let info: (EncryptedInfo, usize) = decode_from_slice(&encrypted_info, legacy())
+         .map_err(|e| Error::DecodingFailed(e.to_string()))?;
 
-      Ok(info)
+      Ok(info.0)
    }
 
    pub fn from_file(dir: &std::path::PathBuf) -> Result<Self, Error> {
       let data = std::fs::read(dir).map_err(|e| Error::FileReadFailed(e.to_string()))?;
-      let encrypted_info = extract_encrypted_info(&data)?;
+      let (encrypted_info, _) = extract_encrypted_info_and_data(&data)?;
 
-      let info: EncryptedInfo = bincode::deserialize(&encrypted_info)
-         .map_err(|e| Error::DeserializationFailed(e.to_string()))?;
+      let info: (EncryptedInfo, usize) = decode_from_slice(&encrypted_info, legacy())
+         .map_err(|e| Error::DecodingFailed(e.to_string()))?;
 
       Ok(Self {
-         password_salt: info.password_salt,
-         username_salt: info.username_salt,
-         cipher_nonce: info.cipher_nonce,
-         argon2_params: info.argon2_params,
+         password_salt: info.0.password_salt,
+         username_salt: info.0.username_salt,
+         cipher_nonce: info.0.cipher_nonce,
+         argon2_params: info.0.argon2_params,
       })
    }
 }
 
 /// Argon2 parameters
-#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Clone, Debug, Encode, Decode)]
 pub struct Argon2Params {
    pub m_cost: u32,
    pub t_cost: u32,
