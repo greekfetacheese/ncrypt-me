@@ -128,9 +128,9 @@ pub(crate) fn derive_cipher(
    password_salt: &SaltString,
    argon2: Argon2,
 ) -> Result<XChaCha20Poly1305, Error> {
-   credentials.username.str_scope(|username| {
+   credentials.password.str_scope(|password| {
       let password_hash = argon2
-         .hash_password(username.as_bytes(), password_salt)
+         .hash_password(password.as_bytes(), password_salt)
          .map_err(|e| Error::PasswordHashingFailed(e.to_string()))?;
 
       let mut key = password_hash.hash.ok_or(Error::PasswordHashOutput)?;
