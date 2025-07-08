@@ -13,7 +13,7 @@
 //! ```
 //! use ncrypt_me::{encrypt_data, decrypt_data, secure_types::SecureString, Credentials, Argon2Params};
 //!
-//! let some_data = vec![1, 2, 3, 4]
+//! let exposed_data: Vec<u8> = vec![1, 2, 3, 4]
 //!         let credentials = Credentials::new(
 //! SecureString::from("username"),
 //! SecureString::from("password"),
@@ -21,12 +21,13 @@
 //! );
 //!
 //! let argon_params = Argon2Params::fast();
-//! let encrypted_data = encrypt_data(argon_params, some_data.clone(), credentials.clone()).unwrap();
+//! let secure_data = SecureBytes::from_vec(exposed_data.clone()).unwrap();
+//! let encrypted_data = encrypt_data(argon_params, secure_data, credentials.clone()).unwrap();
 //!
 //! let decrypted_data = decrypt_data(encrypted_data, credentials).unwrap();
 //!
 //! decrypted_data.slice_scope(|decrypted_data| {
-//!     assert_eq!(decrypted_data, &some_data);
+//!     assert_eq!(decrypted_data, &exposed_data);
 //! });
 //! ```
 //!
@@ -126,17 +127,7 @@ impl EncryptedInfo {
 
    pub fn from_file(dir: &std::path::PathBuf) -> Result<Self, Error> {
       let data = std::fs::read(dir).map_err(|e| Error::FileReadFailed(e.to_string()))?;
-      let (encrypted_info, _) = extract_encrypted_info_and_data(&data)?;
-
-      let info: (EncryptedInfo, usize) = decode_from_slice(&encrypted_info, legacy())
-         .map_err(|e| Error::DecodingFailed(e.to_string()))?;
-
-      Ok(Self {
-         password_salt: info.0.password_salt,
-         username_salt: info.0.username_salt,
-         cipher_nonce: info.0.cipher_nonce,
-         argon2_params: info.0.argon2_params,
-      })
+      Self::from_encrypted_data(&data)
    }
 }
 
@@ -229,22 +220,20 @@ mod tests {
    use super::credentials::Credentials;
    use super::decrypt::decrypt_data;
    use super::encrypt::encrypt_data;
-   use argon2::password_hash::{Encoding, Output};
-   use secure_types::SecureString;
+   use argon2::password_hash::Output;
+   use secure_types::{SecureBytes, SecureString};
 
    #[test]
    fn erase_output_works() {
       let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-      let mut output = Output::new_with_encoding(&data, Encoding::Crypt).unwrap();
+      let mut output = Output::new(&data).unwrap();
       super::erase_output(&mut output);
-
-      let bytes = output.as_bytes();
-      assert_eq!(bytes, &[0; 0]);
+      assert_eq!(output.as_bytes(), &[0; 0]);
    }
 
    #[test]
    fn can_encrypt_decrypt() {
-      let some_data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      let exposed_data: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       let credentials = Credentials::new(
          SecureString::from("username"),
          SecureString::from("password"),
@@ -258,26 +247,15 @@ mod tests {
          hash_length: 64,
       };
 
-      let encrypted_data = encrypt_data(
-         argon_params,
-         some_data.clone(),
-         credentials.clone(),
-      )
-      .expect("Failed to encrypt data");
-
-      std::fs::write("test.ncrypt", &encrypted_data)
-         .expect("Failed to write encrypted data to file");
-
-      let encrypted_data =
-         std::fs::read("test.ncrypt").expect("Failed to read encrypted data from file");
+      let secure_data = SecureBytes::from_vec(exposed_data.clone()).unwrap();
+      let encrypted_data = encrypt_data(argon_params, secure_data, credentials.clone())
+         .expect("Failed to encrypt data");
 
       let decrypted_data =
          decrypt_data(encrypted_data, credentials).expect("Failed to decrypt data");
 
       decrypted_data.slice_scope(|decrypted_data| {
-         assert_eq!(some_data, decrypted_data);
+         assert_eq!(exposed_data, decrypted_data);
       });
-
-      std::fs::remove_file("test.ncrypt").expect("Failed to remove test file");
    }
 }

@@ -69,9 +69,15 @@ fn decrypt(
 
    let nonce = GenericArray::from_slice(&info.cipher_nonce);
 
-   let decrypted_data = cipher
-      .decrypt(nonce, payload)
-      .map_err(|e| Error::DecryptionFailed(e.to_string()))?;
+   let decrypted_data_res = cipher.decrypt(nonce, payload);
+
+   let decrypted_data = match decrypted_data_res {
+      Ok(data) => data,
+      Err(e) => {
+         erase_output(&mut aad);
+         return Err(Error::DecryptionFailed(e.to_string()));
+      }
+   };
 
    erase_output(&mut aad);
 

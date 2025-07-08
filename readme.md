@@ -17,9 +17,9 @@ Given some `Credentials` (username and password), the process for encrypting dat
 
 
 ```rust
-use ncrypt_me::{encrypt_data, decrypt_data, Credentials, Argon2Params};
+use ncrypt_me::{encrypt_data, decrypt_data, Credentials, Argon2Params, secure_types::{SecureString, SecureBytes}};
 
-let some_data = vec![1, 2, 3, 4];
+let exposed_data: Vec<u8> = vec![1, 2, 3, 4];
 let credentials = Credentials::new(
  SecureString::from("username"),
  SecureString::from("password"),
@@ -27,11 +27,12 @@ let credentials = Credentials::new(
  );
 
 let argon_params = Argon2Params::fast();
-let encrypted_data = encrypt_data(argon_params, some_data.clone(), credentials.clone()).unwrap();
+let secure_data = SecureBytes::from_vec(exposed_data.clone()).unwrap();
+let encrypted_data = encrypt_data(argon_params, secure_data, credentials.clone()).unwrap();
 
 let decrypted_data = decrypt_data(encrypted_data, credentials).unwrap();
 
-assert_eq!(some_data, decrypted_data);
+assert_eq!(exposed_data, decrypted_data);
 ```
 
 

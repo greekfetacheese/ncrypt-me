@@ -38,7 +38,7 @@ pub const HEADER: &[u8; 8] = b"nCrypt1\0";
 /// - `credentials` - The credentials to use for encryption
 pub fn encrypt_data(
    argon_params: Argon2Params,
-   data: Vec<u8>,
+   data: SecureBytes,
    credentials: Credentials,
 ) -> Result<Vec<u8>, Error> {
    let (encrypted_data, info) = encrypt(argon_params, credentials, data)?;
@@ -68,10 +68,8 @@ pub fn encrypt_data(
 fn encrypt(
    argon_params: Argon2Params,
    mut credentials: Credentials,
-   data: Vec<u8>,
+   data: SecureBytes,
 ) -> Result<(Vec<u8>, EncryptedInfo), Error> {
-   let secure_data = SecureBytes::from_vec(data).map_err(|e| Error::Custom(e.to_string()))?;
-
    credentials
       .is_valid()
       .map_err(|e| Error::InvalidCredentials(e.to_string()))?;
@@ -100,15 +98,21 @@ fn encrypt(
 
    let cipher_nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
 
-   secure_data.slice_scope(|data| {
+   data.slice_scope(|data| {
       let payload = Payload {
          msg: data,
          aad: &aad.as_bytes(),
       };
 
-      let encrypted_data = cipher
-         .encrypt(&cipher_nonce, payload)
-         .map_err(|e| Error::EncryptionFailed(e.to_string()))?;
+      let encrypted_data_res = cipher.encrypt(&cipher_nonce, payload);
+
+      let encrypted_data = match encrypted_data_res {
+         Ok(data) => data,
+         Err(e) => {
+            erase_output(&mut aad);
+            return Err(Error::EncryptionFailed(e.to_string()));
+         }
+      };
 
       erase_output(&mut aad);
 
