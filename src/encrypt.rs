@@ -133,11 +133,11 @@ pub(crate) fn derive_cipher(
    argon2: Argon2,
 ) -> Result<XChaCha20Poly1305, Error> {
    credentials.password.str_scope(|password| {
-      let password_hash = argon2
+      let mut password_hash = argon2
          .hash_password(password.as_bytes(), password_salt)
          .map_err(|e| Error::PasswordHashingFailed(e.to_string()))?;
 
-      let mut key = password_hash.hash.ok_or(Error::PasswordHashOutput)?;
+      let mut key = password_hash.hash.take().expect("Password hash is none");
 
       let cipher = xchacha20_poly_1305(&key);
       erase_output(&mut key);
@@ -151,10 +151,11 @@ pub(crate) fn derive_aad(
    argon2: Argon2,
 ) -> Result<Output, Error> {
    credentials.username.str_scope(|username| {
-      let username_hash = argon2
+      let mut username_hash = argon2
          .hash_password(username.as_bytes(), username_salt)
          .map_err(|e| Error::UsernameHashingFailed(e.to_string()))?;
-      Ok(username_hash.hash.ok_or(Error::UsernameHashOutput)?)
+      let aad = username_hash.hash.take().expect("Username hash is none");
+      Ok(aad)
    })
 }
 
