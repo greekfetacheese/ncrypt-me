@@ -3,11 +3,11 @@
 
 ## How the Data is Encrypted
 
-Given some `Credentials` (username and password), the process for encrypting data involves:
+Given some `Credentials` (username and password):
 
 - **Hashing**: Both the password and username are hashed using **Argon2**.
   - The resulting hash of the **password** is used as the **key** for the **XChaCha20Poly1305** cipher.
-  - The resulting hash of the **username** serves as the **Additional Authenticated Data (AAD)** for the cipher.
+  - The resulting hash of the **username** is used as the **Additional Authenticated Data (AAD)** for the cipher.
 
 - **Encryption**: With the key and AAD set, the data is encrypted using the **XChaCha20Poly1305** cipher.
 
@@ -17,7 +17,7 @@ Given some `Credentials` (username and password), the process for encrypting dat
 
 
 ```rust
-use ncrypt_me::{encrypt_data, decrypt_data, Credentials, Argon2Params, secure_types::{SecureString, SecureBytes}};
+use ncrypt_me::{encrypt_data, decrypt_data, Credentials, Argon2, secure_types::{SecureString, SecureBytes}};
 
 let exposed_data: Vec<u8> = vec![1, 2, 3, 4];
 let credentials = Credentials::new(
@@ -26,7 +26,7 @@ let credentials = Credentials::new(
  SecureString::from("password"),
  );
 
-let argon_params = Argon2Params::fast();
+let argon_params = Argon2::balanced();
 let secure_data = SecureBytes::from_vec(exposed_data.clone()).unwrap();
 let encrypted_data = encrypt_data(argon_params, secure_data, credentials.clone()).unwrap();
 

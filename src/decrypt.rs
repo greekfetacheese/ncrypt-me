@@ -1,11 +1,11 @@
 use super::{
-   EncryptedInfo, credentials::Credentials, encrypt::*, erase_output, error::Error,
+   EncryptedInfo, credentials::Credentials, encrypt::*, error::Error,
    extract_encrypted_info_and_data,
 };
-use argon2::{Algorithm, Argon2, Params, Version, password_hash::SaltString};
-use bincode::{config::legacy, decode_from_slice};
+use bincode::{config::standard, decode_from_slice};
 use chacha20poly1305::aead::{Aead, Payload, generic_array::GenericArray};
 use secure_types::SecureBytes;
+use zeroize::Zeroize;
 
 /// Decrypts the data using the provided credentials
 ///
@@ -21,7 +21,7 @@ pub fn decrypt_data(data: Vec<u8>, credentials: Credentials) -> Result<SecureByt
 
    let (encrypted_info, encrypted_data) = extract_encrypted_info_and_data(&data)?;
 
-   let info: (EncryptedInfo, usize) = decode_from_slice(&encrypted_info, legacy())
+   let info: (EncryptedInfo, usize) = decode_from_slice(&encrypted_info, standard())
       .map_err(|e| Error::DecodingFailed(e.to_string()))?;
 
    let decrypted_data = decrypt(credentials, info.0, encrypted_data)?;
@@ -29,7 +29,7 @@ pub fn decrypt_data(data: Vec<u8>, credentials: Credentials) -> Result<SecureByt
 }
 
 fn decrypt(
-   mut credentials: Credentials,
+   credentials: Credentials,
    info: EncryptedInfo,
    data: Vec<u8>,
 ) -> Result<SecureBytes, Error> {
@@ -37,49 +37,32 @@ fn decrypt(
       .is_valid()
       .map_err(|e| Error::InvalidCredentials(e.to_string()))?;
 
-   let params = Params::new(
-      info.argon2_params.m_cost,
-      info.argon2_params.t_cost,
-      info.argon2_params.p_cost,
-      Some(info.argon2_params.hash_length as usize),
-   )
-   .map_err(|e| Error::InvalidArgon2Params(e.to_string()))?;
+   let password_hash = info
+      .argon2
+      .hash_password(&credentials.password, info.password_salt.clone())?;
 
-   let argon2 = Argon2::new(
-      Algorithm::default(),
-      Version::default(),
-      params.clone(),
-   );
+   let username_hash = info
+      .argon2
+      .hash_password(&credentials.username, info.username_salt.clone())?;
 
-   let password_salt =
-      SaltString::from_b64(&info.password_salt).map_err(|e| Error::PasswordSalt(e.to_string()))?;
-
-   let username_salt =
-      SaltString::from_b64(&info.username_salt).map_err(|e| Error::UsernameSalt(e.to_string()))?;
-
-   let cipher = derive_cipher(&credentials, &password_salt, argon2.clone())?;
-   let mut aad = derive_aad(&credentials, &username_salt, argon2.clone())?;
-
-   credentials.erase();
+   let nonce = GenericArray::from_slice(&info.cipher_nonce);
+   let mut aad = username_hash.slice_scope(|bytes| bytes.to_vec());
 
    let payload = Payload {
       msg: data.as_ref(),
-      aad: aad.as_bytes(),
+      aad: &aad,
    };
 
-   let nonce = GenericArray::from_slice(&info.cipher_nonce);
-
+   let cipher = xchacha20_poly_1305(password_hash);
    let decrypted_data_res = cipher.decrypt(nonce, payload);
+   aad.zeroize();
 
    let decrypted_data = match decrypted_data_res {
       Ok(data) => data,
       Err(e) => {
-         erase_output(&mut aad);
          return Err(Error::DecryptionFailed(e.to_string()));
       }
    };
-
-   erase_output(&mut aad);
 
    let secure_data =
       SecureBytes::from_vec(decrypted_data).map_err(|e| Error::Custom(e.to_string()))?;
