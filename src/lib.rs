@@ -226,6 +226,7 @@ impl Argon2 {
          m_cost: 128_000,
          t_cost: 8,
          p_cost: 64,
+         hash_length: RECOMMENDED_HASH_LENGTH,
          ..Default::default()
       }
    }
@@ -236,6 +237,7 @@ impl Argon2 {
          m_cost: 256_000,
          t_cost: 8,
          p_cost: 64,
+         hash_length: RECOMMENDED_HASH_LENGTH,
          ..Default::default()
       }
    }
@@ -245,6 +247,7 @@ impl Argon2 {
          m_cost: 1024_000,
          t_cost: 16,
          p_cost: 64,
+         hash_length: RECOMMENDED_HASH_LENGTH,
          ..Default::default()
       }
    }
@@ -254,6 +257,7 @@ impl Argon2 {
          m_cost: 2048_000,
          t_cost: 16,
          p_cost: 64,
+         hash_length: RECOMMENDED_HASH_LENGTH,
          ..Default::default()
       }
    }
@@ -263,6 +267,7 @@ impl Argon2 {
          m_cost: 3072_000,
          t_cost: 24,
          p_cost: 64,
+         hash_length: RECOMMENDED_HASH_LENGTH,
          ..Default::default()
       }
    }
