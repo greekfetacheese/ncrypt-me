@@ -33,9 +33,7 @@ fn decrypt(
    info: EncryptedInfo,
    data: Vec<u8>,
 ) -> Result<SecureBytes, Error> {
-   credentials
-      .is_valid()
-      .map_err(|e| Error::InvalidCredentials(e.to_string()))?;
+   credentials.is_valid()?;
 
    let password_hash = info
       .argon2

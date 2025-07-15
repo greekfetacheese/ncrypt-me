@@ -65,9 +65,7 @@ fn encrypt(
    credentials: Credentials,
    data: SecureBytes,
 ) -> Result<(Vec<u8>, EncryptedInfo), Error> {
-   credentials
-      .is_valid()
-      .map_err(|e| Error::InvalidCredentials(e.to_string()))?;
+   credentials.is_valid()?;
 
    if argon2.hash_length < 32 {
       return Err(Error::HashLength);
@@ -75,7 +73,7 @@ fn encrypt(
 
    let mut password_salt = vec![0u8; RECOMMENDED_SALT_LEN];
    let mut username_salt = vec![0u8; RECOMMENDED_SALT_LEN];
-   
+
    OsRng
       .try_fill_bytes(&mut password_salt)
       .map_err(|e| Error::Custom(e.to_string()))?;

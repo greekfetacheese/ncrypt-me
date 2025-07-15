@@ -11,7 +11,7 @@ pub use decrypt::decrypt_data;
 pub use encrypt::encrypt_data;
 
 use bincode::{Decode, Encode, config::standard, decode_from_slice};
-use error::Error;
+use error::{Error, map_argon2_error};
 use secure_types::{SecureBytes, SecureString};
 use zeroize::Zeroize;
 
@@ -205,10 +205,7 @@ impl Argon2 {
       salt.zeroize();
 
       if code != 0 {
-         return Err(Error::Custom(format!(
-            "Argon2 error code: {}",
-            code
-         )));
+         return Err(Error::Argon2(map_argon2_error(code)));
       }
 
       let secured_buffer =
