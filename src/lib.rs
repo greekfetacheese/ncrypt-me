@@ -1,3 +1,49 @@
+//! ncrypt_me - Secure Data Encryption
+//!
+//!
+//! ## How the Data is Encrypted
+//!
+//! Given some `Credentials` (username and password):
+//!
+//! - **Hashing**: Both the password and username are hashed using **Argon2**.
+//!   - The resulting hash of the **password** is used as the **key** for the **XChaCha20Poly1305** cipher.
+//!   - The resulting hash of the **username** is used as the **Additional Authenticated Data (AAD)** for the cipher.
+//!
+//! - **Encryption**: With the key and AAD set, the data is encrypted using the **XChaCha20Poly1305** cipher.
+//!
+//! - **Output**: The encrypted data is then returned.
+//!
+//! ### Example
+//!
+//!
+//! ```
+//! use ncrypt_me::{encrypt_data, decrypt_data, Credentials, Argon2, secure_types::{SecureString, SecureBytes}};
+//!
+//! let exposed_data: Vec<u8> = vec![1, 2, 3, 4];
+//! let credentials = Credentials::new(
+//!  SecureString::from("username"),
+//!  SecureString::from("password"),
+//!  SecureString::from("password"),
+//! );
+//!
+//! // I don't recommend using such low values, this is just an example
+//! 
+//! let m_cost = 24_000;
+//! let t_cost = 3;
+//! let p_cost = 4;
+//!
+//! let argon2 = Argon2::new(m_cost, t_cost, p_cost);
+//! let secure_data = SecureBytes::from_vec(exposed_data.clone()).unwrap();
+//! let encrypted_data = encrypt_data(argon2, secure_data, credentials.clone()).unwrap();
+//!
+//! let decrypted_data = decrypt_data(encrypted_data, credentials).unwrap();
+//!
+//! decrypted_data.slice_scope(|decrypted_slice| {
+//!  assert_eq!(&exposed_data, decrypted_slice);
+//! });
+//! ```
+
+
 pub mod credentials;
 pub mod decrypt;
 pub mod encrypt;

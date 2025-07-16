@@ -26,17 +26,19 @@ let credentials = Credentials::new(
  SecureString::from("password"),
  );
 
-let argon_params = Argon2::balanced();
+let argon_params = Argon2::very_fast();
 let secure_data = SecureBytes::from_vec(exposed_data.clone()).unwrap();
 let encrypted_data = encrypt_data(argon_params, secure_data, credentials.clone()).unwrap();
 
 let decrypted_data = decrypt_data(encrypted_data, credentials).unwrap();
 
-assert_eq!(exposed_data, decrypted_data);
+decrypted_data.slice_scope(|decrypted_slice| {
+  assert_eq!(exposed_data, decrypted_slice);
+});
 ```
 
 
-### Extracting the Encrypted Info
+### Extracting the Encrypted Info (if needed)
 
 The Encrypted Info contains the following information:
 - Password Salt used for the password hashing

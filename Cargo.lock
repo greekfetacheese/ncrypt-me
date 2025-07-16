@@ -254,9 +254,9 @@ dependencies = [
 
 [[package]]
 name = "secure-types"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9881408aae59e7da4c57368f2c3f4e7adb23b551b2e3c62424cdfd190aea9990"
+checksum = "e5f21ccf2f2b2458cf5355eb61d73cb6a84864f4d25d7680282604d896e8c941"
 dependencies = [
  "libc",
  "memsec",
