@@ -27,7 +27,7 @@
 //! );
 //!
 //! // I don't recommend using such low values, this is just an example
-//! 
+//!
 //! let m_cost = 24_000;
 //! let t_cost = 3;
 //! let p_cost = 4;
@@ -42,7 +42,6 @@
 //!  assert_eq!(&exposed_data, decrypted_slice);
 //! });
 //! ```
-
 
 pub mod credentials;
 pub mod decrypt;
@@ -61,7 +60,7 @@ use error::{Error, map_argon2_error};
 use secure_types::{SecureBytes, SecureString};
 use zeroize::Zeroize;
 
-use argon2_sys::argon2_hash;
+use argon2_sys::{ARGON2_FLAG_CLEAR_PASSWORD, argon2_context, argon2_ctx};
 
 const HEADER_LEN: usize = 8;
 const ENCRYPTED_INFO_START: usize = 12;
@@ -216,35 +215,31 @@ impl Argon2 {
       mut salt: Vec<u8>,
    ) -> Result<SecureBytes, Error> {
       let mut hash_buffer = vec![0u8; self.hash_length as usize];
-      let (hash_buffer_ptr, hash_buffer_len) = (
-         hash_buffer.as_mut_ptr() as *mut libc::c_void,
-         hash_buffer.len(),
-      );
 
-      let (salt_ptr, saltlen) = (salt.as_ptr() as *const libc::c_void, salt.len());
-
-      let code = password.str_scope(|password| {
-         let (password_ptr, password_len) = (
-            password.as_bytes().as_ptr() as *const libc::c_void,
-            password.len(),
-         );
+      let code = password.str_scope(|password_str| {
+         let mut context = argon2_context {
+            out: hash_buffer.as_mut_ptr(),
+            outlen: self.hash_length as u32,
+            pwd: password_str.as_bytes().as_ptr() as *mut u8,
+            pwdlen: password_str.len() as u32,
+            salt: salt.as_mut_ptr(),
+            saltlen: salt.len() as u32,
+            secret: std::ptr::null_mut(),
+            secretlen: 0,
+            ad: std::ptr::null_mut(),
+            adlen: 0,
+            t_cost: self.t_cost,
+            m_cost: self.m_cost,
+            lanes: self.p_cost,
+            threads: self.p_cost,
+            version: self.version as u32,
+            allocate_cbk: None,
+            free_cbk: None,
+            flags: ARGON2_FLAG_CLEAR_PASSWORD,
+         };
 
          unsafe {
-            argon2_hash(
-               self.t_cost,
-               self.m_cost,
-               self.p_cost,
-               password_ptr,
-               password_len,
-               salt_ptr,
-               saltlen,
-               hash_buffer_ptr,
-               hash_buffer_len,
-               core::ptr::null_mut(),
-               0,
-               self.algorithm as u32,
-               self.version as u32,
-            )
+            argon2_ctx(&mut context, self.algorithm as u32)
          }
       });
 
@@ -262,7 +257,6 @@ impl Argon2 {
 
 // Argon2 Presets
 impl Argon2 {
-
    /// Not recommended
    pub fn very_fast() -> Self {
       Self {
