@@ -191,7 +191,7 @@ dependencies = [
 
 [[package]]
 name = "ncrypt-me"
-version = "0.1.11"
+version = "0.1.15"
 dependencies = [
  "argon2-sys",
  "bincode",
