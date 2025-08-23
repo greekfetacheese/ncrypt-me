@@ -238,9 +238,7 @@ impl Argon2 {
             flags: ARGON2_FLAG_CLEAR_PASSWORD,
          };
 
-         unsafe {
-            argon2_ctx(&mut context, self.algorithm as u32)
-         }
+         unsafe { argon2_ctx(&mut context, self.algorithm as u32) }
       });
 
       salt.zeroize();
@@ -257,23 +255,21 @@ impl Argon2 {
 
 // Argon2 Presets
 impl Argon2 {
-   /// Not recommended
    pub fn very_fast() -> Self {
       Self {
          m_cost: 128_000,
-         t_cost: 16,
-         p_cost: 4,
+         t_cost: 8,
+         p_cost: 1,
          hash_length: RECOMMENDED_HASH_LENGTH,
          ..Default::default()
       }
    }
 
-   /// Not recommended
    pub fn fast() -> Self {
       Self {
          m_cost: 256_000,
-         t_cost: 8,
-         p_cost: 4,
+         t_cost: 16,
+         p_cost: 1,
          hash_length: RECOMMENDED_HASH_LENGTH,
          ..Default::default()
       }
@@ -282,8 +278,8 @@ impl Argon2 {
    pub fn balanced() -> Self {
       Self {
          m_cost: 1024_000,
-         t_cost: 16,
-         p_cost: 4,
+         t_cost: 8,
+         p_cost: 1,
          hash_length: RECOMMENDED_HASH_LENGTH,
          ..Default::default()
       }
@@ -292,8 +288,8 @@ impl Argon2 {
    pub fn slow() -> Self {
       Self {
          m_cost: 2048_000,
-         t_cost: 16,
-         p_cost: 4,
+         t_cost: 8,
+         p_cost: 1,
          hash_length: RECOMMENDED_HASH_LENGTH,
          ..Default::default()
       }
@@ -302,8 +298,8 @@ impl Argon2 {
    pub fn very_slow() -> Self {
       Self {
          m_cost: 3072_000,
-         t_cost: 24,
-         p_cost: 4,
+         t_cost: 8,
+         p_cost: 1,
          hash_length: RECOMMENDED_HASH_LENGTH,
          ..Default::default()
       }
