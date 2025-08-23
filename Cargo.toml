@@ -1,7 +1,7 @@
 [package]
 name = "ncrypt-me"
 authors = ["Michalis Molfetas"]
-version = "0.1.16"
+version = "0.1.17"
 edition = "2024"
 repository = "https://github.com/greekfetacheese/ncrypt-me"
 description = "Dead simple encryption library"
