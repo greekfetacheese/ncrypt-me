@@ -60,7 +60,7 @@ use error::{Error, map_argon2_error};
 use secure_types::{SecureBytes, SecureString};
 use zeroize::Zeroize;
 
-use argon2_sys::{ARGON2_FLAG_CLEAR_PASSWORD, argon2_context, argon2_ctx};
+use argon2_sys::{ARGON2_DEFAULT_FLAGS, argon2_context, argon2_ctx};
 
 const HEADER_LEN: usize = 8;
 const ENCRYPTED_INFO_START: usize = 12;
@@ -235,7 +235,7 @@ impl Argon2 {
             version: self.version as u32,
             allocate_cbk: None,
             free_cbk: None,
-            flags: ARGON2_FLAG_CLEAR_PASSWORD,
+            flags: ARGON2_DEFAULT_FLAGS,
          };
 
          unsafe { argon2_ctx(&mut context, self.algorithm as u32) }
@@ -333,6 +333,19 @@ mod tests {
 
       decrypted_data.slice_scope(|decrypted_data| {
          assert_eq!(exposed_data, decrypted_data);
+      });
+   }
+
+   #[test]
+   fn test_hash_password() {
+      let password = SecureString::from("password");
+      let salt = String::from("examplesaltvault").as_bytes().to_vec();
+
+      let argon2 = Argon2::new(24_000, 3, 1);
+      let _hash = argon2.hash_password(&password, salt).unwrap();
+
+      password.str_scope(|password_str| {
+         eprintln!("password_str: {}", password_str);
       });
    }
 }
