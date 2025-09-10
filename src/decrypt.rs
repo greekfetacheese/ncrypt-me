@@ -44,7 +44,7 @@ fn decrypt(
       .hash_password(&credentials.username, info.username_salt.clone())?;
 
    let nonce = GenericArray::from_slice(&info.cipher_nonce);
-   let mut aad = username_hash.slice_scope(|bytes| bytes.to_vec());
+   let mut aad = username_hash.unlock_slice(|bytes| bytes.to_vec());
 
    let payload = Payload {
       msg: data.as_ref(),

@@ -54,7 +54,7 @@ impl Credentials {
 
    /// Copy password to confirm password
    pub fn copy_passwd_to_confirm(&mut self) {
-      self.password.str_scope(|str| {
+      self.password.unlock_str(|str| {
          self.confirm_password.erase();
          self.confirm_password.push_str(str);
       });
@@ -73,8 +73,8 @@ impl Credentials {
          return Err(CredentialsError::ConfirmPasswordEmpty);
       }
 
-      let res = self.password.str_scope(|password| {
-         self.confirm_password.str_scope(|confirm_password| {
+      let res = self.password.unlock_str(|password| {
+         self.confirm_password.unlock_str(|confirm_password| {
             if password != confirm_password {
                return Err(CredentialsError::PasswordsDoNotMatch);
             } else {

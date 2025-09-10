@@ -191,7 +191,7 @@ dependencies = [
 
 [[package]]
 name = "ncrypt-me"
-version = "0.1.20"
+version = "0.1.21"
 dependencies = [
  "argon2-sys",
  "bincode",
@@ -254,9 +254,9 @@ dependencies = [
 
 [[package]]
 name = "secure-types"
-version = "0.1.31"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06d2bc3c694f9e0b913f66d5da38057ec0b36aaeb1fedd664ef97f6611a729da"
+checksum = "4e065a2cd8a27b7afa02e03b6d1a800e1f401483b1ba450971d4113ef21869f3"
 dependencies = [
  "libc",
  "memsec",

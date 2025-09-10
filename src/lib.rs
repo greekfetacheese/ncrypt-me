@@ -38,7 +38,7 @@
 //!
 //! let decrypted_data = decrypt_data(encrypted_data, credentials).unwrap();
 //!
-//! decrypted_data.slice_scope(|decrypted_slice| {
+//! decrypted_data.unlock_slice(|decrypted_slice| {
 //!  assert_eq!(&exposed_data, decrypted_slice);
 //! });
 //! ```
@@ -216,7 +216,7 @@ impl Argon2 {
    ) -> Result<SecureBytes, Error> {
       let mut hash_buffer = vec![0u8; self.hash_length as usize];
 
-      let code = password.str_scope(|password_str| {
+      let code = password.unlock_str(|password_str| {
          let mut context = argon2_context {
             out: hash_buffer.as_mut_ptr(),
             outlen: self.hash_length as u32,
@@ -331,7 +331,7 @@ mod tests {
       let encrypted_data = encrypt_data(argon2, secure_data, credentials.clone()).unwrap();
       let decrypted_data = decrypt_data(encrypted_data, credentials).unwrap();
 
-      decrypted_data.slice_scope(|decrypted_data| {
+      decrypted_data.unlock_slice(|decrypted_data| {
          assert_eq!(exposed_data, decrypted_data);
       });
    }
@@ -344,7 +344,7 @@ mod tests {
       let argon2 = Argon2::new(24_000, 3, 1);
       let _hash = argon2.hash_password(&password, salt).unwrap();
 
-      password.str_scope(|password_str| {
+      password.unlock_str(|password_str| {
          eprintln!("password_str: {}", password_str);
       });
    }

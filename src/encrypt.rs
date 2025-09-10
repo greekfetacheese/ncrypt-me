@@ -86,8 +86,8 @@ fn encrypt(
    let password_hash = argon2.hash_password(&credentials.password, password_salt.clone())?;
    let username_hash = argon2.hash_password(&credentials.username, username_salt.clone())?;
 
-   data.slice_scope(|data| {
-      let mut aad = username_hash.slice_scope(|bytes| bytes.to_vec());
+   data.unlock_slice(|data| {
+      let mut aad = username_hash.unlock_slice(|bytes| bytes.to_vec());
 
       let payload = Payload {
          msg: data,
@@ -118,7 +118,7 @@ fn encrypt(
 }
 
 pub(crate) fn xchacha20_poly_1305(hash_output: SecureBytes) -> XChaCha20Poly1305 {
-   let mut key = hash_output.slice_scope(|bytes| *GenericArray::from_slice(&bytes[..32]));
+   let mut key = hash_output.unlock_slice(|bytes| *GenericArray::from_slice(&bytes[..32]));
 
    let cipher = XChaCha20Poly1305::new(&key);
    key.zeroize();
