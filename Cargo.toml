@@ -17,7 +17,6 @@ chacha20poly1305 = { version = "0.10.1", features = ["getrandom"]}
 argon2-rs = {version = "0.1.1", features = ["zeroize", "bincode"]}
 
 # Misc
-libc = "0.2"
 bincode = "2"
 zeroize = "1.8.2"
 secure-types = "0.2"

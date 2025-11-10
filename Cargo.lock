@@ -208,7 +208,6 @@ dependencies = [
  "argon2-rs",
  "bincode",
  "chacha20poly1305",
- "libc",
  "secure-types",
  "thiserror",
  "zeroize",
