@@ -35,16 +35,19 @@ fn decrypt(
 ) -> Result<SecureBytes, Error> {
    credentials.is_valid()?;
 
-   let password_hash = info
-      .argon2
-      .hash_password(&credentials.password, info.password_salt.clone())?;
+   let argon2 = &info.argon2;
+   let username = &credentials.username;
+   let password = &credentials.password;
 
-   let username_hash = info
-      .argon2
-      .hash_password(&credentials.username, info.username_salt.clone())?;
+   let mut aad = username
+      .unlock_str(|username_str| argon2.hash_password(&username_str, info.username_salt.clone()))
+      .map_err(|e| Error::Custom(e.to_string()))?;
+
+   let password_hash = password
+      .unlock_str(|password_str| argon2.hash_password(&password_str, info.password_salt.clone()))
+      .map_err(|e| Error::Custom(e.to_string()))?;
 
    let nonce = GenericArray::from_slice(&info.cipher_nonce);
-   let mut aad = username_hash.unlock_slice(|bytes| bytes.to_vec());
 
    let payload = Payload {
       msg: data.as_ref(),

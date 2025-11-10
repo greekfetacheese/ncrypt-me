@@ -83,12 +83,17 @@ fn encrypt(
 
    let cipher_nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
 
-   let password_hash = argon2.hash_password(&credentials.password, password_salt.clone())?;
-   let username_hash = argon2.hash_password(&credentials.username, username_salt.clone())?;
+   let mut aad = credentials
+      .username
+      .unlock_str(|username_str| argon2.hash_password(&username_str, username_salt.clone()))
+      .map_err(|e| Error::Custom(e.to_string()))?;
+
+   let password_hash = credentials
+      .password
+      .unlock_str(|password_str| argon2.hash_password(&password_str, password_salt.clone()))
+      .map_err(|e| Error::Custom(e.to_string()))?;
 
    data.unlock_slice(|data| {
-      let mut aad = username_hash.unlock_slice(|bytes| bytes.to_vec());
-
       let payload = Payload {
          msg: data,
          aad: &aad,
@@ -117,8 +122,9 @@ fn encrypt(
    })
 }
 
-pub(crate) fn xchacha20_poly_1305(hash_output: SecureBytes) -> XChaCha20Poly1305 {
-   let mut key = hash_output.unlock_slice(|bytes| *GenericArray::from_slice(&bytes[..32]));
+pub(crate) fn xchacha20_poly_1305(mut hash_output: Vec<u8>) -> XChaCha20Poly1305 {
+   let mut key = GenericArray::clone_from_slice(&hash_output[..32]);
+   hash_output.zeroize();
 
    let cipher = XChaCha20Poly1305::new(&key);
    key.zeroize();
