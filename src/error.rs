@@ -19,13 +19,13 @@ pub enum Error {
    Custom(String),
 }
 
-impl From <Argon2Error> for Error {
+impl From<Argon2Error> for Error {
    fn from(e: Argon2Error) -> Self {
       Error::Argon2(e)
    }
 }
 
-impl From <CredentialsError> for Error {
+impl From<CredentialsError> for Error {
    fn from(e: CredentialsError) -> Self {
       Error::Credentials(e)
    }
