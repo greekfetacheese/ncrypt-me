@@ -1,6 +1,5 @@
 use super::*;
 
-use bincode::{config::standard, encode_to_vec};
 use chacha20poly1305::{
    AeadCore, KeyInit, XChaCha20Poly1305,
    aead::{Aead, OsRng, Payload, generic_array::GenericArray, rand_core::RngCore},
@@ -21,8 +20,10 @@ use secure_types::SecureBytes;
 ██████████████████████████████████████████████████████████████████████████████
 */
 
-/// File Header
+// File Headers
 pub const HEADER: &[u8; 8] = b"nCrypt1\0";
+
+pub const HEADER_02: &[u8; 8] = b"nCrypt2\0";
 
 /// Encrypts the given data
 ///
@@ -38,14 +39,13 @@ pub fn encrypt_data(
 ) -> Result<Vec<u8>, Error> {
    let (encrypted_data, info) = encrypt(argon2, credentials, data)?;
 
-   let encoded_info =
-      encode_to_vec(&info, standard()).map_err(|e| Error::EncodingFailed(e.to_string()))?;
+   let encoded_info = info.encode();
 
    // Construct the file format
    let mut result = Vec::new();
 
    // Append the header
-   result.extend_from_slice(HEADER);
+   result.extend_from_slice(HEADER_02);
 
    // Append the EncryptedInfo Length
    let info_length = encoded_info.len() as u32;

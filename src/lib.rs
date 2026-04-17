@@ -53,9 +53,8 @@ pub use zeroize;
 
 pub use credentials::Credentials;
 pub use decrypt::decrypt_data;
-pub use encrypt::encrypt_data;
+pub use encrypt::{HEADER, HEADER_02, encrypt_data};
 
-use bincode::{Decode, Encode, config::standard, decode_from_slice};
 use error::Error;
 use zeroize::Zeroize;
 
@@ -65,22 +64,28 @@ const HEADER_LEN: usize = 8;
 const ENCRYPTED_INFO_START: usize = 12;
 pub const RECOMMENDED_SALT_LEN: usize = 64;
 
-pub(crate) fn extract_encrypted_info_and_data(
-   encrypted_data: &[u8],
-) -> Result<(Vec<u8>, Vec<u8>), Error> {
+pub(crate) fn extract_encrypted_info_and_data(data: &[u8]) -> Result<(Vec<u8>, Vec<u8>), Error> {
+   if &data[0..8] != HEADER_02 {
+      return Err(Error::InvalidFileFormat);
+   }
+
+   if &data[0..8] == HEADER {
+      return Err(Error::VersionMismatch);
+   }
+
    let encrypted_info_length = u32::from_le_bytes(
-      encrypted_data[HEADER_LEN..ENCRYPTED_INFO_START]
+      data[HEADER_LEN..ENCRYPTED_INFO_START]
          .try_into()
          .map_err(|_| Error::EncryptedInfo)?,
    );
 
    let encrypted_info_end = ENCRYPTED_INFO_START + (encrypted_info_length as usize);
-   let encrypted_info = &encrypted_data[ENCRYPTED_INFO_START..encrypted_info_end];
-   let encrypted_data = &encrypted_data[encrypted_info_end..];
+   let encrypted_info = &data[ENCRYPTED_INFO_START..encrypted_info_end];
+   let encrypted_data = &data[encrypted_info_end..];
    Ok((encrypted_info.to_vec(), encrypted_data.to_vec()))
 }
 
-#[derive(Default, Clone, Debug, Encode, Decode)]
+#[derive(Default, Clone, Debug)]
 pub struct EncryptedInfo {
    pub password_salt: Vec<u8>,
    pub username_salt: Vec<u8>,
@@ -103,13 +108,34 @@ impl EncryptedInfo {
       }
    }
 
+   pub fn encode(&self) -> Vec<u8> {
+      let mut data = Vec::new();
+      data.extend_from_slice(&self.password_salt);
+      data.extend_from_slice(&self.username_salt);
+      data.extend_from_slice(&self.cipher_nonce);
+      data.extend_from_slice(&self.argon2.encode());
+      data
+   }
+
    pub fn from_encrypted_data(data: &[u8]) -> Result<Self, Error> {
       let (encrypted_info, _) = extract_encrypted_info_and_data(data)?;
 
-      let info: (EncryptedInfo, usize) = decode_from_slice(&encrypted_info, standard())
-         .map_err(|e| Error::DecodingFailed(e.to_string()))?;
+      let salt_len = RECOMMENDED_SALT_LEN;
+      let password_salt = encrypted_info[0..salt_len].to_vec();
+      let username_salt = encrypted_info[salt_len..(salt_len * 2)].to_vec();
+      let cipher_nonce_start = salt_len * 2;
+      let cipher_nonce = encrypted_info[cipher_nonce_start..(cipher_nonce_start + 24)].to_vec();
+      let argon2_start = cipher_nonce_start + 24;
+      let argon2 = Argon2::decode(&encrypted_info[argon2_start..])?;
 
-      Ok(info.0)
+      let info = EncryptedInfo {
+         password_salt,
+         username_salt,
+         cipher_nonce,
+         argon2,
+      };
+
+      Ok(info)
    }
 }
 

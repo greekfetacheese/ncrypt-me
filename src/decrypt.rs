@@ -2,7 +2,6 @@ use super::{
    EncryptedInfo, credentials::Credentials, encrypt::*, error::Error,
    extract_encrypted_info_and_data,
 };
-use bincode::{config::standard, decode_from_slice};
 use chacha20poly1305::aead::{Aead, Payload, generic_array::GenericArray};
 use secure_types::SecureBytes;
 use zeroize::Zeroize;
@@ -14,17 +13,11 @@ use zeroize::Zeroize;
 /// - `data` - The data to decrypt
 /// - `credentials` - The credentials to use for decryption
 pub fn decrypt_data(data: Vec<u8>, credentials: Credentials) -> Result<SecureBytes, Error> {
-   // Verify Header
-   if &data[0..8] != HEADER {
-      return Err(Error::InvalidFileFormat);
-   }
+   let (_, encrypted_data) = extract_encrypted_info_and_data(&data)?;
 
-   let (encrypted_info, encrypted_data) = extract_encrypted_info_and_data(&data)?;
+   let info = EncryptedInfo::from_encrypted_data(&data)?;
 
-   let info: (EncryptedInfo, usize) = decode_from_slice(&encrypted_info, standard())
-      .map_err(|e| Error::DecodingFailed(e.to_string()))?;
-
-   let decrypted_data = decrypt(credentials, info.0, encrypted_data)?;
+   let decrypted_data = decrypt(credentials, info, encrypted_data)?;
    Ok(decrypted_data)
 }
 
