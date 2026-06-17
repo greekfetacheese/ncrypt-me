@@ -18,4 +18,4 @@ argon2-rs = {version = "0.2", features = ["zeroize"]}
 
 # Misc
 zeroize = "1.8.2"
-secure-types = "0.2"
+secure-types = "0.3"
