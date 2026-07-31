@@ -30,11 +30,51 @@ pub const HEADER_02: &[u8; 8] = b"nCrypt2\0";
 /// ### Arguments
 ///
 /// - `argon2` - The Argon2 instance to use for the password hashing
-/// - `data` - The data to encrypt
+/// - `secure_data` - The data to encrypt
 /// - `credentials` - The credentials to use for encryption
 pub fn encrypt_data(
    argon2: Argon2,
-   data: SecureBytes,
+   secure_data: SecureBytes,
+   credentials: Credentials,
+) -> Result<Vec<u8>, Error> {
+   let (encrypted_data, info) =
+      secure_data.unlock_slice(|data| encrypt(argon2, credentials, data))?;
+
+   let encoded_info = info.encode();
+
+   // Construct the file format
+   let mut result = Vec::new();
+
+   // Append the header
+   result.extend_from_slice(HEADER_02);
+
+   // Append the EncryptedInfo Length
+   let info_length = encoded_info.len() as u32;
+   result.extend_from_slice(&info_length.to_le_bytes());
+
+   // Append the EncryptedInfo
+   result.extend_from_slice(&encoded_info);
+
+   // Append the encrypted Data
+   result.extend_from_slice(&encrypted_data);
+
+   Ok(result)
+}
+
+/// Encrypts the given data
+///
+/// This is the same as `encrypt_data` but takes a reference to the data to encrypt
+///
+/// Use this if the data you want to encrypt is too large to fit in a [SecureBytes]
+///
+/// ### Arguments
+///
+/// - `argon2` - The Argon2 instance to use for the password hashing
+/// - `data` - a reference to the data to encrypt
+/// - `credentials` - The credentials to use for encryption
+pub fn encrypt_data_ref(
+   argon2: Argon2,
+   data: &[u8],
    credentials: Credentials,
 ) -> Result<Vec<u8>, Error> {
    let (encrypted_data, info) = encrypt(argon2, credentials, data)?;
@@ -63,7 +103,7 @@ pub fn encrypt_data(
 fn encrypt(
    argon2: Argon2,
    credentials: Credentials,
-   data: SecureBytes,
+   data: &[u8],
 ) -> Result<(Vec<u8>, EncryptedInfo), Error> {
    credentials.is_valid()?;
 
@@ -93,33 +133,31 @@ fn encrypt(
       .unlock_str(|password_str| argon2.hash_password(&password_str, password_salt.clone()))
       .map_err(|e| Error::Custom(e.to_string()))?;
 
-   data.unlock_slice(|data| {
-      let payload = Payload {
-         msg: data,
-         aad: &aad,
-      };
+   let payload = Payload {
+      msg: data,
+      aad: &aad,
+   };
 
-      let cipher = xchacha20_poly_1305(password_hash);
+   let cipher = xchacha20_poly_1305(password_hash);
 
-      let encrypted_data_res = cipher.encrypt(&cipher_nonce, payload);
-      aad.zeroize();
+   let encrypted_data_res = cipher.encrypt(&cipher_nonce, payload);
+   aad.zeroize();
 
-      let encrypted_data = match encrypted_data_res {
-         Ok(data) => data,
-         Err(e) => {
-            return Err(Error::EncryptionFailed(e.to_string()));
-         }
-      };
+   let encrypted_data = match encrypted_data_res {
+      Ok(data) => data,
+      Err(e) => {
+         return Err(Error::EncryptionFailed(e.to_string()));
+      }
+   };
 
-      let info = EncryptedInfo::new(
-         password_salt,
-         username_salt,
-         cipher_nonce.to_vec(),
-         argon2,
-      );
+   let info = EncryptedInfo::new(
+      password_salt,
+      username_salt,
+      cipher_nonce.to_vec(),
+      argon2,
+   );
 
-      Ok((encrypted_data, info))
-   })
+   Ok((encrypted_data, info))
 }
 
 pub(crate) fn xchacha20_poly_1305(mut hash_output: Vec<u8>) -> XChaCha20Poly1305 {

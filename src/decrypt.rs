@@ -18,14 +18,32 @@ pub fn decrypt_data(data: Vec<u8>, credentials: Credentials) -> Result<SecureByt
    let info = EncryptedInfo::from_encrypted_data(&data)?;
 
    let decrypted_data = decrypt(credentials, info, encrypted_data)?;
+   let secure_data =
+      SecureBytes::from_vec(decrypted_data).map_err(|e| Error::Custom(e.to_string()))?;
+
+   Ok(secure_data)
+}
+
+/// Decrypts the data using the provided credentials
+///
+/// This is the same as `decrypt_data` but returns an unsecure [Vec<u8>]
+///
+/// Use this if the data you want to decrypt is too large to fit in a [SecureBytes]
+///
+/// ### Arguments
+///
+/// - `data` - The data to decrypt
+/// - `credentials` - The credentials to use for decryption
+pub fn decrypt_data_unsecured(data: Vec<u8>, credentials: Credentials) -> Result<Vec<u8>, Error> {
+   let (_, encrypted_data) = extract_encrypted_info_and_data(&data)?;
+
+   let info = EncryptedInfo::from_encrypted_data(&data)?;
+
+   let decrypted_data = decrypt(credentials, info, encrypted_data)?;
    Ok(decrypted_data)
 }
 
-fn decrypt(
-   credentials: Credentials,
-   info: EncryptedInfo,
-   data: Vec<u8>,
-) -> Result<SecureBytes, Error> {
+fn decrypt(credentials: Credentials, info: EncryptedInfo, data: Vec<u8>) -> Result<Vec<u8>, Error> {
    credentials.is_valid()?;
 
    let argon2 = &info.argon2;
@@ -58,8 +76,5 @@ fn decrypt(
       }
    };
 
-   let secure_data =
-      SecureBytes::from_vec(decrypted_data).map_err(|e| Error::Custom(e.to_string()))?;
-
-   Ok(secure_data)
+   Ok(decrypted_data)
 }
