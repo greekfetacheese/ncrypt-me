@@ -14,9 +14,9 @@ dependencies = [
 
 [[package]]
 name = "argon2-rs"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9aa47f96ca0c1800ddcd702d71da0a61b3a84c2472affbfe8b05716441e2c1b"
+checksum = "d0edfb280854fe6b4a7297dfd4c3602a6d4ae34d8e157955fffe623ab5b6d3cb"
 dependencies = [
  "argon2-sys",
  "zeroize",
