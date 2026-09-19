@@ -49,14 +49,12 @@ pub mod encrypt;
 pub mod error;
 
 pub use secure_types;
-pub use zeroize;
 
 pub use credentials::Credentials;
 pub use decrypt::decrypt_data;
 pub use encrypt::{HEADER, HEADER_02, encrypt_data};
 
 use error::Error;
-use zeroize::Zeroize;
 
 pub use argon2_rs::Argon2;
 

@@ -3,8 +3,7 @@ use super::{
    extract_encrypted_info_and_data,
 };
 use chacha20poly1305::aead::{Aead, Payload, generic_array::GenericArray};
-use secure_types::SecureBytes;
-use zeroize::Zeroize;
+use secure_types::{SecureBytes, Zeroize};
 
 /// Decrypts the data using the provided credentials
 ///

@@ -4,7 +4,7 @@ use chacha20poly1305::{
    AeadCore, KeyInit, XChaCha20Poly1305,
    aead::{Aead, OsRng, Payload, generic_array::GenericArray, rand_core::RngCore},
 };
-use secure_types::SecureBytes;
+use secure_types::{SecureBytes, Zeroize};
 
 /*
 ██████████████████████████████████████████████████████████████████████████████
