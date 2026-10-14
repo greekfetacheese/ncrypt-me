@@ -53,9 +53,18 @@ fn decrypt(credentials: Credentials, info: EncryptedInfo, data: Vec<u8>) -> Resu
       .unlock_str(|username_str| argon2.hash_password(&username_str, info.username_salt.clone()))
       .map_err(|e| Error::Custom(e.to_string()))?;
 
-   let password_hash = password
+   let mut password_hash = password
       .unlock_str(|password_str| argon2.hash_password(&password_str, info.password_salt.clone()))
       .map_err(|e| Error::Custom(e.to_string()))?;
+
+   // The Argon2 parameters, including the hash length, come from the file. A hash
+   // shorter than 32 bytes cannot become the cipher key, so reject it here instead of
+   // letting `xchacha20_poly_1305` slice a too short buffer.
+   if password_hash.len() < 32 {
+      password_hash.zeroize();
+      aad.zeroize();
+      return Err(Error::HashLength);
+   }
 
    let nonce = GenericArray::from_slice(&info.cipher_nonce);
 
