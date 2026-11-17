@@ -2,7 +2,10 @@ use super::{
    EncryptedInfo, credentials::Credentials, encrypt::*, error::Error,
    extract_encrypted_info_and_data,
 };
-use chacha20poly1305::aead::{Aead, Payload, generic_array::GenericArray};
+use chacha20poly1305::{
+   XNonce,
+   aead::{Aead, Payload},
+};
 use secure_types::{SecureBytes, Zeroize};
 
 /// Decrypts the data using the provided credentials
@@ -66,7 +69,9 @@ fn decrypt(credentials: Credentials, info: EncryptedInfo, data: Vec<u8>) -> Resu
       return Err(Error::HashLength);
    }
 
-   let nonce = GenericArray::from_slice(&info.cipher_nonce);
+   // `EncryptedInfo::from_encrypted_data` only accepts a 24 byte nonce, so this
+   // cannot fail.
+   let nonce = XNonce::try_from(info.cipher_nonce.as_slice()).expect("cipher nonce is 24 bytes");
 
    let payload = Payload {
       msg: data.as_ref(),
@@ -74,7 +79,7 @@ fn decrypt(credentials: Credentials, info: EncryptedInfo, data: Vec<u8>) -> Resu
    };
 
    let cipher = xchacha20_poly_1305(password_hash);
-   let decrypted_data_res = cipher.decrypt(nonce, payload);
+   let decrypted_data_res = cipher.decrypt(&nonce, payload);
    aad.zeroize();
 
    let decrypted_data = match decrypted_data_res {

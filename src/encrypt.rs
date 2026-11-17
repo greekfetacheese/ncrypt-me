@@ -1,8 +1,8 @@
 use super::*;
 
 use chacha20poly1305::{
-   AeadCore, KeyInit, XChaCha20Poly1305,
-   aead::{Aead, OsRng, Payload, generic_array::GenericArray, rand_core::RngCore},
+   Key, KeyInit, XChaCha20Poly1305, XNonce,
+   aead::{Aead, Generate, Payload},
 };
 use secure_types::{SecureBytes, Zeroize};
 
@@ -111,17 +111,10 @@ fn encrypt(
       return Err(Error::HashLength);
    }
 
-   let mut password_salt = vec![0u8; RECOMMENDED_SALT_LEN];
-   let mut username_salt = vec![0u8; RECOMMENDED_SALT_LEN];
+   let password_salt = random_salt()?;
+   let username_salt = random_salt()?;
 
-   OsRng
-      .try_fill_bytes(&mut password_salt)
-      .map_err(|e| Error::Custom(e.to_string()))?;
-   OsRng
-      .try_fill_bytes(&mut username_salt)
-      .map_err(|e| Error::Custom(e.to_string()))?;
-
-   let cipher_nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
+   let cipher_nonce = XNonce::try_generate().map_err(|e| Error::Custom(e.to_string()))?;
 
    let mut aad = credentials
       .username
@@ -161,10 +154,18 @@ fn encrypt(
 }
 
 pub(crate) fn xchacha20_poly_1305(mut hash_output: Vec<u8>) -> XChaCha20Poly1305 {
-   let mut key = GenericArray::clone_from_slice(&hash_output[..32]);
+   // Every caller rejects a hash shorter than 32 bytes before getting here.
+   let mut key = Key::try_from(&hash_output[..32]).expect("hash is at least 32 bytes");
    hash_output.zeroize();
 
    let cipher = XChaCha20Poly1305::new(&key);
    key.zeroize();
    cipher
+}
+
+fn random_salt() -> Result<Vec<u8>, Error> {
+   let salt: [u8; RECOMMENDED_SALT_LEN] =
+      Generate::try_generate().map_err(|e| Error::Custom(e.to_string()))?;
+
+   Ok(salt.to_vec())
 }
